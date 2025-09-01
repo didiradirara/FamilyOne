@@ -1,0 +1,7 @@
+﻿{
+  "editor.formatOnSave": true,
+  "files.eol": "\n",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "eslint.validate": ["javascript","javascriptreact","typescript","typescriptreact"],
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}

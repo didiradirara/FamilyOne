@@ -1,0 +1,33 @@
+﻿# # Global
+# .DS_Store
+# Thumbs.db
+# *.log
+# .env
+
+# # Server (Node/TS)
+# server/node_modules/
+# server/dist/
+# server/dev.db
+# server/.env
+# server/.tsbuildinfo
+
+# # Mobile (Expo RN)
+# mobile/node_modules/
+# mobile/.expo/
+# mobile/.expo-shared/
+# mobile/dist/
+
+# # Flutter
+# flutter/.dart_tool/
+# flutter/build/
+# flutter/.packages
+# flutter/.flutter-plugins
+# flutter/.flutter-plugins-dependencies
+# flutter/.metadata
+
+# # Spring (Maven)
+# spring-server/target/
+
+# # IDE/editor
+# .vscode/
+# .idea/
