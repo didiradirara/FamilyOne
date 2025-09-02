@@ -1,5 +1,5 @@
 ﻿import { View, Text, Button, ScrollView, Alert, Pressable, Modal, TextInput, Platform } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useRealtime } from '../realtime/RealtimeContext';
@@ -14,6 +14,8 @@ export default function HomeScreen() {
   const [message, setMessage] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [pickedAssets, setPickedAssets] = useState<any[]>([]);
+  const [todayProducts, setTodayProducts] = useState<any[]>([]);
+  const [todayLeaves, setTodayLeaves] = useState<any[]>([]);
 
   const openMemo = (type: typeof selectedType) => {
     setSelectedType(type);
@@ -26,6 +28,26 @@ export default function HomeScreen() {
     setMessage(defaults[type]);
     setShowMemo(true);
   };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const prod = await api.get('/api/productions/today');
+        setTodayProducts(prod.data || []);
+      } catch {
+        setTodayProducts([]);
+      }
+      try {
+        const res = await api.get('/api/leave-requests');
+        const today = new Date().toISOString().slice(0,10);
+        const list = (res.data || []).filter((l: any) => l.startDate <= today && l.endDate >= today);
+        setTodayLeaves(list);
+      } catch {
+        setTodayLeaves([]);
+      }
+    };
+    load();
+  }, []);
 
   const uploadAssetsStreaming = async (assets: any[]) => {
     const base = (api.defaults.baseURL || '').replace(/\/+$/, '');
@@ -139,6 +161,18 @@ export default function HomeScreen() {
         <Text style={{ color: '#d32f2f' }}>신규 보고 {counters.reports}건</Text>
       )}
       <Button title="보고 목록 열기" onPress={() => navigation.navigate('Reports', { screen: 'ReportsList' })} />
+      <View style={{ marginTop: 16 }}>
+        <Text style={{ fontWeight: '600' }}>금일 생산제품목록</Text>
+        {todayProducts.length ? todayProducts.map((p: any, idx: number) => (
+          <Text key={idx}>{p.name || p}</Text>
+        )) : <Text style={{ color: '#555' }}>목록이 없습니다.</Text>}
+      </View>
+      <View style={{ marginTop: 16 }}>
+        <Text style={{ fontWeight: '600' }}>팀별 금일 휴가자</Text>
+        {todayLeaves.length ? todayLeaves.map((l: any) => (
+          <Text key={l.id}>{l.userId}</Text>
+        )) : <Text style={{ color: '#555' }}>목록이 없습니다.</Text>}
+      </View>
       <Modal visible={showMemo} transparent animationType="fade" onRequestClose={() => setShowMemo(false)}>
         <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'center', alignItems:'center' }} onPress={() => setShowMemo(false)}>
           <Pressable style={{ backgroundColor:'#fff', padding:16, borderRadius:8, width:'85%' }} onPress={(e)=>e.stopPropagation()}>
