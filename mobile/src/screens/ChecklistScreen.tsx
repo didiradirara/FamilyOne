@@ -1,4 +1,4 @@
-﻿import { View, Text, Button, FlatList, Alert } from 'react-native';
+import { View, Text, Button, FlatList, Alert, Pressable } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
@@ -24,15 +24,36 @@ export default function ChecklistScreen() {
     }
   };
 
+  const toggleItem = (id: string) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, checked: !i.checked } : i));
+  };
+
+  const allChecked = items.length > 0 && items.every(i => i.checked);
+
   return (
     <View style={{ padding: 16, gap: 12, flex: 1 }}>
       <Text style={{ fontSize: 18, fontWeight: '600' }}>안전 체크리스트(데모)</Text>
-      <FlatList data={items} keyExtractor={(i) => i.id} renderItem={({ item }) => (
-        <View style={{ padding: 8, borderWidth: 1, marginVertical: 4 }}>
-          <Text>{item.title}</Text>
-        </View>
-      )} />
-      <Button title="제출" onPress={submit} />
+      <FlatList
+        data={items}
+        keyExtractor={(i) => i.id}
+        renderItem={({ item }) => (
+          <Pressable
+            onPress={() => toggleItem(item.id)}
+            style={{ flexDirection: 'row', alignItems: 'center', padding: 8, borderWidth: 1, marginVertical: 4 }}
+          >
+            <Text style={{ marginRight: 8 }}>{item.checked ? '☑' : '☐'}</Text>
+            <Text>{item.title}</Text>
+          </Pressable>
+        )}
+      />
+      <Pressable
+        onPress={() => setItems(prev => prev.map(i => ({ ...i, checked: !allChecked })))}
+        style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 8 }}
+      >
+        <Text style={{ marginRight: 8 }}>{allChecked ? '☑' : '☐'}</Text>
+        <Text>모두 체크</Text>
+      </Pressable>
+      <Button title="제출" onPress={submit} disabled={!allChecked} />
     </View>
   );
 }
