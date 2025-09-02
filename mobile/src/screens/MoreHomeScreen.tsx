@@ -25,7 +25,6 @@ export default function MoreHomeScreen({ navigation }: Props) {
           <Text style={{ color: '#666' }}>{(user as any).site || '-'} / {(user as any).team || '-'} {(user as any).teamDetail ? `/ ${(user as any).teamDetail}` : ''}</Text>
         )}
       </View>
-      <Row label="보고 작성" onPress={() => navigation.navigate('Report')} />
       {/* 보고 목록은 전용 탭으로 이동 */}
       <Row label="보고(탭으로 이동)" onPress={() => (navigation as any).navigate('Reports')} />
       <Row label="체크리스트" onPress={() => navigation.navigate('Checklist')} />
