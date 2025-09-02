@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, Button, Alert, Pressable, Modal, FlatList } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, Button, Alert, Pressable, Modal, FlatList, StyleSheet } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
 
@@ -70,34 +70,61 @@ export default function AuthScreen() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: 'center' }}>
-      <Text style={{ fontSize: 22, fontWeight: '700', textAlign: 'center' }}>FamilyOne 로그인</Text>
-      <TextInput placeholder="이름" value={name} onChangeText={setName} style={{ borderWidth: 1, borderColor: '#ccc', padding: 10, borderRadius: 8 }} />
-      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+    <View style={styles.container}>
+      <Text style={styles.title}>FamilyOne 로그인</Text>
+      <TextInput
+        placeholder="이름"
+        value={name}
+        onChangeText={setName}
+        style={styles.input}
+      />
+      <View style={styles.row}>
         <Text>역할:</Text>
-        {(['worker','manager','admin'] as const).map(r => (
-          <Pressable key={r} onPress={() => setRole(r)} style={{ paddingVertical: 6, paddingHorizontal: 10, borderWidth: 1, borderColor: role===r?'#333':'#ccc', borderRadius: 6 }}>
+        {(['worker', 'manager', 'admin'] as const).map((r) => (
+          <Pressable
+            key={r}
+            onPress={() => setRole(r)}
+            style={{
+              paddingVertical: 6,
+              paddingHorizontal: 10,
+              borderWidth: 1,
+              borderColor: role === r ? '#333' : '#ccc',
+              borderRadius: 6,
+            }}
+          >
             <Text>{r}</Text>
           </Pressable>
         ))}
       </View>
 
-      <View style={{ gap: 8 }}>
+      <View style={styles.section}>
         <Text>사업장:</Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {(['hq','jeonju','busan'] as const).map(s => (
-            <Pressable key={s} onPress={() => { setSite(s); setTeam((s==='jeonju'?jeonjuTeams:(s==='busan'?busanTeams:hqTeams))[0]); setTeamDetail(null); }} style={{ paddingVertical: 6, paddingHorizontal: 10, borderWidth: 1, borderColor: site===s?'#333':'#ccc', borderRadius: 6 }}>
-              <Text>{s==='hq'?'본사':(s==='jeonju'?'전주공장':'부산공장')}</Text>
+        <View style={styles.row}>
+          {(['hq', 'jeonju', 'busan'] as const).map((s) => (
+            <Pressable
+              key={s}
+              onPress={() => setSite(s)}
+              style={{
+                paddingVertical: 6,
+                paddingHorizontal: 10,
+                borderWidth: 1,
+                borderColor: site === s ? '#333' : '#ccc',
+                borderRadius: 6,
+              }}
+            >
+              <Text>
+                {s === 'hq' ? '본사' : s === 'jeonju' ? '전주공장' : '부산공장'}
+              </Text>
             </Pressable>
           ))}
         </View>
         <Text>팀 선택:</Text>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+        <View style={styles.row}>
           <Text>{team || '-'}</Text>
           <Button title="선택" onPress={() => setShowTeamPicker(true)} />
         </View>
-        {!!teams.find(t => t.team === team)?.details.length && (
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 8 }}>
+        {!!teams.find((t) => t.team === team)?.details.length && (
+          <View style={[styles.row, { marginTop: 8 }]}>
             <Text>{teamDetail || '-'}</Text>
             <Button title="세부담당 선택" onPress={() => setShowDetailPicker(true)} />
           </View>
@@ -133,8 +160,48 @@ export default function AuthScreen() {
       </Modal>
       <Button title={registering ? '가입 중...' : '회원가입'} onPress={onRegister} disabled={registering} />
       <Button title="이미 계정 있음: 로그인" onPress={onLogin} />
-      <Text style={{ color: '#666', textAlign: 'center' }}>관리자/매니저 권한이 필요한 화면이 있습니다.</Text>
+      <Text style={styles.footer}>관리자/매니저 권한이 필요한 화면이 있습니다.</Text>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    gap: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    borderRadius: 8,
+    width: '100%',
+    maxWidth: 400,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+  },
+  section: {
+    gap: 8,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 400,
+  },
+  footer: {
+    color: '#666',
+    textAlign: 'center',
+  },
+});
 
