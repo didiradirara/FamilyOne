@@ -1,4 +1,4 @@
-﻿import { View, Text, Button, ScrollView, Alert, Pressable, Modal, TextInput } from 'react-native';
+﻿import { View, Text, Button, ScrollView, Alert, Pressable, Modal, TextInput, Platform } from 'react-native';
 import React, { useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
@@ -108,7 +108,17 @@ export default function HomeScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
       <Text style={{ fontSize: 20, fontWeight: 'bold' }}>FamilyOne</Text>
-      <Text style={{ color: '#555' }}>{user ? `안녕하세요, ${user.name}님` : '로그인 필요'}</Text>
+      {user ? (
+        <View style={{ alignItems: 'center', gap: 4 }}>
+          <Text>{user.role}</Text>
+          {user.site && <Text>{user.site}</Text>}
+          {user.team && <Text>{user.team}</Text>}
+          {user.teamDetail && <Text>{user.teamDetail}</Text>}
+          <Text>{user.name}</Text>
+        </View>
+      ) : (
+        <Text style={{ color: '#555' }}>로그인 필요</Text>
+      )}
       <Text style={{ color: connected ? 'green' : 'red' }}>Realtime: {connected ? '연결됨' : '미연결'}</Text>
       <View style={{ gap: 8 }}>
         <Text style={{ fontWeight: '600' }}>원클릭 보고</Text>
