@@ -8,7 +8,11 @@ type LR = { id: string; userId: string; startDate: string; endDate: string; stat
 
 export default function LeaveScreen() {
   const { user } = useAuth();
-  const [startDate, setStartDate] = useState('');
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  });
   const [endDate, setEndDate] = useState('');
   const [items, setItems] = useState<LR[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +44,12 @@ export default function LeaveScreen() {
       const err = validate();
       if (err) { setError(err); return; }
       await api.post('/api/leave-requests', { userId: user?.id || '00000000-0000-0000-0000-000000000000', startDate, endDate });
-      setStartDate(''); setEndDate('');
+      setStartDate(() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return d.toISOString().slice(0, 10);
+      });
+      setEndDate('');
       setError(null);
       await load();
     } catch (e: any) {
@@ -48,8 +57,21 @@ export default function LeaveScreen() {
     }
   };
 
-  const openNativePicker = (which: 'start'|'end') => {
+  const openNativePicker = (which: 'start' | 'end') => {
     try {
+      // Web fallback using HTML date input
+      if (Platform.OS === 'web') {
+        const current = which === 'start' ? startDate : endDate;
+        const input = document.createElement('input');
+        input.type = 'date';
+        if (current) input.value = current;
+        input.onchange = (e: any) => {
+          const val = e.target.value;
+          if (which === 'start') setStartDate(val); else setEndDate(val);
+        };
+        input.click();
+        return;
+      }
       // Android dialog API
       if (Platform.OS === 'android') {
         const { DateTimePickerAndroid } = require('@react-native-community/datetimepicker');
@@ -83,31 +105,29 @@ export default function LeaveScreen() {
     }
   };
 
-  const canReview = user?.role === 'manager' || user?.role === 'admin';
-  const review = async (id: string, action: 'approve' | 'reject') => {
-    try {
-      await api.patch(`/api/leave-requests/${id}/${action}`, { reviewerId: user?.id || '00000000-0000-0000-0000-000000000000' });
-      await load();
-    } catch (e: any) {
-      Alert.alert('실패', e?.response?.data?.error || '오류');
-    }
-  };
-
   if (loading) return <Loading />;
 
   return (
     <View style={{ padding: 16, gap: 12, flex: 1 }}>
       <Text style={{ fontSize: 18, fontWeight: '600' }}>휴가 신청</Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Button title="시작=오늘" onPress={() => setStartDate(new Date().toISOString().slice(0,10))} />
+        <Button title="시작=내일" onPress={() => { const d = new Date(); d.setDate(d.getDate()+1); setStartDate(d.toISOString().slice(0,10)); }} />
         <Button title="종료=내일" onPress={() => { const d = new Date(); d.setDate(d.getDate()+1); setEndDate(d.toISOString().slice(0,10)); }} />
       </View>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Button title="시작일 선택(네이티브)" onPress={() => openNativePicker('start')} />
-        <Button title="종료일 선택(네이티브)" onPress={() => openNativePicker('end')} />
-      </View>
-      <TextInput placeholder="시작일 YYYY-MM-DD" value={startDate} onChangeText={setStartDate} style={{ borderWidth: 1, padding: 8 }} />
-      <TextInput placeholder="종료일 YYYY-MM-DD" value={endDate} onChangeText={setEndDate} style={{ borderWidth: 1, padding: 8 }} />
+      <TextInput
+        placeholder="시작일 YYYY-MM-DD"
+        value={startDate}
+        style={{ borderWidth: 1, padding: 8 }}
+        editable={false}
+        onPressIn={() => openNativePicker('start')}
+      />
+      <TextInput
+        placeholder="종료일 YYYY-MM-DD"
+        value={endDate}
+        style={{ borderWidth: 1, padding: 8 }}
+        editable={false}
+        onPressIn={() => openNativePicker('end')}
+      />
       {/* iOS inline picker rendering when available */}
       {Platform.OS === 'ios' && DateTimePickerComp && showStartPicker && (
         <DateTimePickerComp
@@ -125,17 +145,17 @@ export default function LeaveScreen() {
       )}
       {error && <Text style={{ color: '#cc3333' }}>{error}</Text>}
       <Button title="신청" onPress={submit} />
-      <FlatList data={items} keyExtractor={(i) => i.id} ListEmptyComponent={<Empty label="등록된 휴가가 없습니다." />} renderItem={({ item }) => (
-        <View style={{ padding: 8, borderWidth: 1, marginVertical: 4 }}>
-          <Text>{item.userId} / {item.startDate}~{item.endDate} / {item.state}</Text>
-          {canReview && item.state === 'pending' && (
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-              <Button title="승인" onPress={() => review(item.id, 'approve')} />
-              <Button title="반려" color="#cc3333" onPress={() => review(item.id, 'reject')} />
-            </View>
-          )}
-        </View>
-      )} />
+      <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '600' }}>내 신청 목록</Text>
+      <FlatList
+        data={items.filter((i) => i.userId === (user?.id || ''))}
+        keyExtractor={(i) => i.id}
+        ListEmptyComponent={<Empty label="등록된 휴가가 없습니다." />}
+        renderItem={({ item }) => (
+          <View style={{ padding: 8, borderWidth: 1, marginVertical: 4 }}>
+            <Text>{item.startDate}~{item.endDate} / {item.state}</Text>
+          </View>
+        )}
+      />
     </View>
   );
 }
