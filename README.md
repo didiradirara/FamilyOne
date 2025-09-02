@@ -8,7 +8,7 @@
 ## Server (API)
 
 - 개발 실행: cd server && npm run dev (기본 포트 4000)
-- 헬스체크: GET http://localhost:4000/health
+- 헬스체크: GET http://34.47.82.64:4000/health (외부) / http://10.178.0.2:4000/health (내부)
 - API 베이스: /api
 - 현재 인메모리 저장소(빠른 프로토타입). 추후 DB 교체 권장.
 
@@ -46,7 +46,7 @@ pm run ios
 - 실행 전제: JDK 17+, JAVA_HOME 설정
 - 실행: cd spring-server && mvnw.cmd spring-boot:run 또는 mvnw.cmd -DskipTests package 후 java -jar target/*.jar
 - 포트: 8080
-- 헬스체크: GET http://localhost:8080/health
+- 헬스체크: GET http://34.47.82.64:8080/health (외부) / http://10.178.0.2:8080/health (내부)
 - API 베이스: /api
 
 ### 엔드포인트(동일 스펙)
@@ -59,13 +59,17 @@ pm run ios
 - 스케줄: GET /api/schedule
 
 ## Flutter 앱
-- 경로: lutter (소스 스켈레톤)
-- 의존성: pubspec.yaml 참고 (http 등)
-- API 주소: lib/api/client.dart 내 piBase (기본 http://localhost:8080)
-- 최초 플랫폼 생성: Flutter SDK가 설치되어 있다면 cd flutter && flutter create . 실행(기존 lib/pubspec 유지)
-- 실행: lutter run -d chrome (웹), 또는 에뮬레이터/실기기에서 lutter run
-- 실기기 접속 시: piBase를 PC IP로 변경 (예: http://192.168.x.x:8080)
+- API 주소: lib/api/client.dart 내 piBase (기본 http://34.47.82.64:4000)
 
+- 가입: POST http://34.47.82.64:4000/api/auth/register body { name, role: worker|manager|admin } → { token, user }
+- 로그인: POST http://34.47.82.64:4000/api/auth/login body { userId? , name? } → { token, user }
+- 클라이언트: Authorization: Bearer <token> 헤더 첨부
+- 응답 스키마는 기존과 동일(예: 공지 
+eadBy는 문자열 배열)
+
+  const socket = io('http://34.47.82.64:4000', { transports: ['websocket'] })
+  final socket = IO.io('http://34.47.82.64:4000', IO.OptionBuilder().setTransports(['websocket']).build());
+  ```
 ## 참고
 - 기존 Node/Expo 스택도 유지되어 있습니다.
   - Node API: server (포트 4000)

@@ -77,8 +77,9 @@ setInterval(cleanupUploads, 24 * 60 * 60 * 1000);
 setTimeout(cleanupUploads, 10_000);
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
+const HOST = process.env.HOST || '0.0.0.0';
 const server = createServer(app);
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   initRealtime(server);
-  console.log(`[familyone] API listening on http://localhost:${PORT}`);
+  console.log(`[familyone] API listening on http://${HOST}:${PORT}`);
 });
