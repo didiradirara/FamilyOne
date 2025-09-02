@@ -138,7 +138,7 @@ export default function HomeScreen() {
       {counters.reports > 0 && (
         <Text style={{ color: '#d32f2f' }}>신규 보고 {counters.reports}건</Text>
       )}
-      <Button title="보고 목록 열기" onPress={() => navigation.navigate('More', { screen: 'ReportsList' })} />
+      <Button title="보고 목록 열기" onPress={() => navigation.navigate('Reports', { screen: 'ReportsList' })} />
       <Modal visible={showMemo} transparent animationType="fade" onRequestClose={() => setShowMemo(false)}>
         <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'center', alignItems:'center' }} onPress={() => setShowMemo(false)}>
           <Pressable style={{ backgroundColor:'#fff', padding:16, borderRadius:8, width:'85%' }} onPress={(e)=>e.stopPropagation()}>
