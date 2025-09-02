@@ -13,13 +13,32 @@ export default function LeaveScreen() {
     d.setDate(d.getDate() + 1);
     return d.toISOString().slice(0, 10);
   });
-  const [endDate, setEndDate] = useState('');
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  });
   const [items, setItems] = useState<LR[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [DateTimePickerComp, setDateTimePickerComp] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    const yy = String(d.getFullYear()).slice(2);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yy}년${mm}월${dd}일`;
+  };
+
+  const diffDays = (s: string, e: string) =>
+    Math.round((new Date(e).getTime() - new Date(s).getTime()) / 86400000) + 1;
+
+  const formatRange = (s: string, e: string) => `${formatDate(s)}~${formatDate(e)} ${diffDays(s, e)}일간`;
+
+  const stateLabels: Record<string, string> = { pending: '대기', approved: '승인', rejected: '반려' };
 
   const load = async () => {
     setLoading(true);
@@ -41,20 +60,36 @@ export default function LeaveScreen() {
 
   const submit = async () => {
     try {
-      const err = validate();
-      if (err) { setError(err); return; }
-      await api.post('/api/leave-requests', { userId: user?.id || '00000000-0000-0000-0000-000000000000', startDate, endDate });
+      await api.post('/api/leave-requests', {
+        userId: user?.id || '00000000-0000-0000-0000-000000000000',
+        startDate,
+        endDate,
+      });
       setStartDate(() => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
         return d.toISOString().slice(0, 10);
       });
-      setEndDate('');
+      setEndDate(() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return d.toISOString().slice(0, 10);
+      });
       setError(null);
       await load();
     } catch (e: any) {
       Alert.alert('실패', e?.response?.data?.error || '오류');
     }
+  };
+
+  const confirmSubmit = () => {
+    const err = validate();
+    if (err) { setError(err); return; }
+    const msg = `(${formatRange(startDate, endDate)}) 신청하시겠습니까?`;
+    Alert.alert('신청 확인', msg, [
+      { text: '취소' },
+      { text: '확인', onPress: submit },
+    ]);
   };
 
   const openNativePicker = (which: 'start' | 'end') => {
@@ -144,7 +179,7 @@ export default function LeaveScreen() {
         />
       )}
       {error && <Text style={{ color: '#cc3333' }}>{error}</Text>}
-      <Button title="신청" onPress={submit} />
+      <Button title="신청" onPress={confirmSubmit} />
       <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '600' }}>내 신청 목록</Text>
       <FlatList
         data={items.filter((i) => i.userId === (user?.id || ''))}
@@ -152,7 +187,7 @@ export default function LeaveScreen() {
         ListEmptyComponent={<Empty label="등록된 휴가가 없습니다." />}
         renderItem={({ item }) => (
           <View style={{ padding: 8, borderWidth: 1, marginVertical: 4 }}>
-            <Text>{item.startDate}~{item.endDate} / {item.state}</Text>
+            <Text>({formatRange(item.startDate, item.endDate)}) / {stateLabels[item.state] || item.state}</Text>
           </View>
         )}
       />
