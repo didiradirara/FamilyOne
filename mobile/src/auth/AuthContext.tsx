@@ -1,16 +1,17 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { api, setAuthToken } from '../api/client';
+import { api, setAuthToken, setUnauthorizedHandler } from '../api/client';
 import { clearAuth, loadAuth, saveAuth, type StoredUser } from '../storage/auth';
 
 type Role = 'worker' | 'manager' | 'admin';
-type User = { id: string; name: string; role: Role };
+type Site = 'hq'|'jeonju'|'busan';
+type User = { id: string; name: string; role: Role; site?: Site; team?: string; teamDetail?: string | null };
 
 type AuthContextType = {
   user: User | null;
   token: string | null;
   registering: boolean;
   login: (name: string) => Promise<void>;
-  register: (name: string, role: Role) => Promise<void>;
+  register: (name: string, role: Role, site: Site, team: string, teamDetail?: string | null) => Promise<void>;
   logout: () => void;
 };
 
@@ -34,6 +35,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  useEffect(() => {
+    // 401 응답 시 자동 로그아웃
+    setUnauthorizedHandler(() => logout());
+    return () => setUnauthorizedHandler(null);
+  }, []);
+
   const login = async (name: string) => {
     const res = await api.post('/api/auth/login', { name });
     setUser(res.data.user);
@@ -42,10 +49,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await saveAuth(res.data.token, res.data.user as StoredUser);
   };
 
-  const register = async (name: string, role: Role) => {
+  const register = async (name: string, role: Role, site: Site, team: string, teamDetail?: string | null) => {
     setRegistering(true);
     try {
-      const res = await api.post('/api/auth/register', { name, role });
+      const res = await api.post('/api/auth/register', { name, role, site, team, teamDetail });
       setUser(res.data.user);
       setToken(res.data.token);
       setAuthToken(res.data.token);

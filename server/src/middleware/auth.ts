@@ -5,11 +5,11 @@ import type { Role, User } from '../types.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 export function signToken(user: User): string {
-  const payload = { sub: user.id, role: user.role, name: user.name };
+  const payload = { sub: user.id, role: user.role, name: user.name, site: (user as any).site, team: (user as any).team, teamDetail: (user as any).teamDetail };
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 }
 
-export interface AuthPayload { sub: string; role: Role; name: string }
+export interface AuthPayload { sub: string; role: Role; name: string; site?: string; team?: string; teamDetail?: string }
 
 declare global {
   namespace Express {

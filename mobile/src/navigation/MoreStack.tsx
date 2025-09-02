@@ -6,6 +6,7 @@ import ChecklistScreen from '../screens/ChecklistScreen';
 import SuggestionsScreen from '../screens/SuggestionsScreen';
 import LeaveScreen from '../screens/LeaveScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
+import OrgAdminScreen from '../screens/OrgAdminScreen';
 
 export type MoreParamList = {
   MoreHome: undefined;
@@ -14,6 +15,7 @@ export type MoreParamList = {
   Suggestions: undefined;
   Leave: undefined;
   Schedule: undefined;
+  OrgAdmin: undefined;
 };
 
 const Stack = createNativeStackNavigator<MoreParamList>();
@@ -27,6 +29,7 @@ export default function MoreStack() {
       <Stack.Screen name="Suggestions" component={SuggestionsScreen} options={{ title: '제안함' }} />
       <Stack.Screen name="Leave" component={LeaveScreen} options={{ title: '휴가' }} />
       <Stack.Screen name="Schedule" component={ScheduleScreen} options={{ title: '일정' }} />
+      <Stack.Screen name="OrgAdmin" component={OrgAdminScreen} options={{ title: '조직 관리' }} />
     </Stack.Navigator>
   );
 }

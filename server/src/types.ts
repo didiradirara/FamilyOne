@@ -4,6 +4,9 @@ export interface User {
   id: string;
   name: string;
   role: Role;
+  site: 'hq' | 'jeonju' | 'busan';
+  team: string;
+  teamDetail?: string | null;
 }
 
 export type ReportType = 'machine_fault' | 'material_shortage' | 'defect' | 'other';
@@ -15,6 +18,7 @@ export interface Report {
   createdAt: string;
   createdBy: string; // userId
   status: 'new' | 'ack' | 'resolved';
+  images?: string[]; // data URLs or http URLs
 }
 
 export interface RequestItem {

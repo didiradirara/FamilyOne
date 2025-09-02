@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const TOKEN_KEY = 'auth/token';
 const USER_KEY = 'auth/user';
 
-export type StoredUser = { id: string; name: string; role: 'worker'|'manager'|'admin' } | null;
+export type StoredUser = { id: string; name: string; role: 'worker'|'manager'|'admin'; site?: 'hq'|'jeonju'|'busan'; team?: string; teamDetail?: string | null } | null;
 
 export async function saveAuth(token: string, user: StoredUser) {
   await AsyncStorage.multiSet([[TOKEN_KEY, token], [USER_KEY, JSON.stringify(user)]]);
