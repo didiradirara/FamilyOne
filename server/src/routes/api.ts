@@ -37,13 +37,20 @@ apiRouter.post('/reports', (req, res) => {
   const schema = z.object({
     type: z.enum(['machine_fault', 'material_shortage', 'defect', 'other']),
     message: z.string().min(1),
-    createdBy: z.string().uuid(),
     images: z.array(z.string()).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
-  const creator = repo.findUserById(parsed.data.createdBy);
-  const report = repo.createReport({ ...parsed.data, site: creator?.site, team: creator?.team, teamDetail: creator?.teamDetail } as any);
+  const userId = req.auth?.sub;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const creator = repo.findUserById(userId);
+  const report = repo.createReport({
+    ...parsed.data,
+    createdBy: userId,
+    site: creator?.site,
+    team: creator?.team,
+    teamDetail: creator?.teamDetail,
+  } as any);
   notify('report:new', report);
   res.status(201).json(report);
 });
