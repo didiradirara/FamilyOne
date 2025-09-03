@@ -1,4 +1,4 @@
-﻿{
+{
     "expo":  {
                  "name":  "mobile",
                  "slug":  "mobile",
@@ -26,7 +26,9 @@
                              "favicon":  "./assets/favicon.png"
                          },
                  "extra":  {
+
                                "API_BASE_URL":  "http://34.47.82.64"
+
                            }
              }
 }
