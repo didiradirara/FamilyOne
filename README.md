@@ -1,3 +1,4 @@
+
 ﻿# FamilyOne
 
 현장-사무 실시간 소통/업무 플랫폼 MVP 모노레포.
@@ -77,16 +78,8 @@ eadBy는 문자열 배열)
   - Expo RN: mobile (API 주소는 mobile/app.json에서 설정)
 
 
-## Auth + Roles (Node API)
-- 토큰: JWT (JWT_SECRET 환경변수, 없으면 dev-secret)
-- 가입: POST http://localhost:4000/api/auth/register body { name, role: worker|manager|admin } → { token, user }
-- 로그인: POST http://localhost:4000/api/auth/login body { userId? , name? } → { token, user }
-- 인증 필요: /api 하위 전부(uth/* 제외)
-- 권한 필요(관리자/매니저):
-  - 보고 상태변경: PATCH /api/reports/:id
-  - 요청 승인/반려: PATCH /api/requests/:id/(approve|reject)
-  - 공지 등록: POST /api/announcements
-  - 휴가 승인/반려: PATCH /api/leave-requests/:id/(approve|reject)
+# FamilyOne
+
 - 클라이언트: Authorization: Bearer <token> 헤더 첨부
 
 ## DB 영속화 (Node API)
@@ -98,7 +91,8 @@ eadBy는 문자열 배열)
 
 ### 엔드포인트 영향
 - 모든 엔드포인트가 인메모리 대신 SQLite를 사용하도록 변경됨
-- 응답 스키마는 기존과 동일(예: 공지 eadBy는 문자열 배열)
+- 응답 스키마는 기존과 동일(예: 공지 
+eadBy는 문자열 배열)
 
 
 ## 실시간 알림 (Socket.IO)

@@ -1,7 +1,9 @@
-﻿import Constants from 'expo-constants';
+import Constants from 'expo-constants';
 import axios from 'axios';
 
+
 const defaultBaseURL = 'http://34.47.82.64';
+
 const extra = (Constants.expoConfig?.extra as any) || {};
 export const api = axios.create({ baseURL: extra.API_BASE_URL || defaultBaseURL });
 
