@@ -10,6 +10,7 @@ type AuthContextType = {
   user: User | null;
   token: string | null;
   registering: boolean;
+  loggingIn: boolean;
   login: (name: string) => Promise<void>;
   register: (name: string, role: Role, site: Site, team: string, teamDetail?: string | null) => Promise<void>;
   logout: () => void;
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -42,11 +44,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (name: string) => {
-    const res = await api.post('/api/auth/login', { name });
-    setUser(res.data.user);
-    setToken(res.data.token);
-    setAuthToken(res.data.token);
-    await saveAuth(res.data.token, res.data.user as StoredUser);
+    setLoggingIn(true);
+    try {
+      const res = await api.post('/api/auth/login', { name });
+      setUser(res.data.user);
+      setToken(res.data.token);
+      setAuthToken(res.data.token);
+      await saveAuth(res.data.token, res.data.user as StoredUser);
+    } finally {
+      setLoggingIn(false);
+    }
   };
 
   const register = async (name: string, role: Role, site: Site, team: string, teamDetail?: string | null) => {
@@ -69,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearAuth();
   };
 
-  const value = useMemo(() => ({ user, token, registering, login, register, logout }), [user, token, registering]);
+  const value = useMemo(() => ({ user, token, registering, loggingIn, login, register, logout }), [user, token, registering, loggingIn]);
   if (loading) return null;
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
 
 export default function AuthScreen() {
-  const { login, register, registering } = useAuth();
+  const { login, register, registering, loggingIn } = useAuth();
   const [name, setName] = useState('');
   const [role, setRole] = useState<'worker'|'manager'|'admin'>('worker');
   const [site, setSite] = useState<'hq'|'jeonju'|'busan'>('hq');
@@ -158,8 +158,8 @@ export default function AuthScreen() {
           </View>
         </Pressable>
       </Modal>
-      <Button title={registering ? '가입 중...' : '회원가입'} onPress={onRegister} disabled={registering} />
-      <Button title="이미 계정 있음: 로그인" onPress={onLogin} />
+      <Button title={registering ? '가입 중...' : '회원가입'} onPress={onRegister} disabled={registering || loggingIn} />
+      <Button title={loggingIn ? '로그인 중...' : '이미 계정 있음: 로그인'} onPress={onLogin} disabled={loggingIn || registering} />
       <Text style={styles.footer}>관리자/매니저 권한이 필요한 화면이 있습니다.</Text>
     </View>
   );
