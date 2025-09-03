@@ -14,6 +14,17 @@ export const api = axios.create({
   baseURL: extra.API_BASE_URL || devBaseURL || defaultBaseURL,
 });
 
+// Allow API_BASE_URL values that already include the "/api" prefix. If the
+// baseURL ends with "/api" and callers also prefix paths with "/api", strip
+// the duplicate segment so requests resolve correctly.
+api.interceptors.request.use((config) => {
+  const base = config.baseURL || '';
+  if (base.endsWith('/api') && config.url?.startsWith('/api/')) {
+    config.url = config.url.slice(4);
+  }
+  return config;
+});
+
 let authToken: string | null = null;
 let onUnauthorized: (() => void) | null = null;
 
