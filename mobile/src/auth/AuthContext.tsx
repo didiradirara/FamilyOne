@@ -46,11 +46,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (name: string) => {
     setLoggingIn(true);
     try {
+      console.log('[Auth] Sending login request', { name });
       const res = await api.post('/api/auth/login', { name });
+      console.log('[Auth] Login response', res.data);
       setUser(res.data.user);
       setToken(res.data.token);
       setAuthToken(res.data.token);
       await saveAuth(res.data.token, res.data.user as StoredUser);
+    } catch (e) {
+      const err = e as any;
+      console.error('[Auth] Login error', err?.message || err, err?.response?.data);
+      throw e;
     } finally {
       setLoggingIn(false);
     }
@@ -59,7 +65,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (name: string, role: Role, site: Site, team: string, teamDetail?: string | null) => {
     setRegistering(true);
     try {
-      const res = await api.post('/api/auth/register', { name, role, site, team, teamDetail });
+      const payload: any = { name, role, site, team };
+      if (teamDetail) payload.teamDetail = teamDetail;
+      const res = await api.post('/api/auth/register', payload);
       setUser(res.data.user);
       setToken(res.data.token);
       setAuthToken(res.data.token);

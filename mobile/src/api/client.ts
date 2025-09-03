@@ -1,11 +1,18 @@
 import Constants from 'expo-constants';
 import axios from 'axios';
 
-
+// Determine which API endpoint to hit.
+// 1) Use API_BASE_URL from app config if provided.
+// 2) In dev, fall back to the Metro host so the emulator talks to the local API.
+// 3) Finally, use the production host.
 const defaultBaseURL = 'http://34.47.82.64';
-
 const extra = (Constants.expoConfig?.extra as any) || {};
-export const api = axios.create({ baseURL: extra.API_BASE_URL || defaultBaseURL });
+const debuggerHost = Constants.expoGoConfig?.debuggerHost?.split(':')?.[0];
+const devBaseURL = __DEV__ && debuggerHost ? `http://${debuggerHost}` : undefined;
+
+export const api = axios.create({
+  baseURL: extra.API_BASE_URL || devBaseURL || defaultBaseURL,
+});
 
 let authToken: string | null = null;
 let onUnauthorized: (() => void) | null = null;

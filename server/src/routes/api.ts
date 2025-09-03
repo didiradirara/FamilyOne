@@ -29,14 +29,19 @@ apiRouter.post('/auth/register', (req, res) => {
 });
 
 apiRouter.post('/auth/login', (req, res) => {
+  console.log('[Auth] login request', req.body);
   const schema = z.object({ userId: z.string().uuid().optional(), name: z.string().optional() });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
   let user: any;
   if (parsed.data.userId) user = repo.findUserById(parsed.data.userId);
   else if (parsed.data.name) user = repo.findUserByName(parsed.data.name);
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (!user) {
+    console.warn('[Auth] login failed: user not found', req.body);
+    return res.status(404).json({ error: 'User not found' });
+  }
   const token = signToken(user);
+  console.log('[Auth] login success', { userId: user.id });
   res.json({ token, user });
 });
 

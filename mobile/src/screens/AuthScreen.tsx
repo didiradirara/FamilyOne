@@ -50,12 +50,16 @@ export default function AuthScreen() {
   };
   useEffect(() => { loadTeams(site); }, [site]);
 
+  const getErrorMessage = (e: any) =>
+    e?.response?.data?.error || (e?.message === 'Network Error' ? '네트워크 오류: 서버에 연결할 수 없습니다.' : e?.message || '오류');
+
   const onLogin = async () => {
     try {
       if (!name.trim()) return Alert.alert('이름을 입력하세요');
+      console.log('[AuthScreen] Login button pressed', { name: name.trim() });
       await login(name.trim());
     } catch (e: any) {
-      Alert.alert('로그인 실패', e?.response?.data?.error || '오류');
+      Alert.alert('로그인 실패', getErrorMessage(e));
     }
   };
 
@@ -63,9 +67,18 @@ export default function AuthScreen() {
     try {
       if (!name.trim()) return Alert.alert('이름을 입력하세요');
       if (!team) return Alert.alert('팀을 선택하세요');
-      await register(name.trim(), role, site, team, team === '생산팀' && site === 'jeonju' ? teamDetail ?? undefined : undefined);
+      if (team === '생산팀' && site === 'jeonju' && !teamDetail) {
+        return Alert.alert('세부담당을 선택하세요');
+      }
+      await register(
+        name.trim(),
+        role,
+        site,
+        team,
+        team === '생산팀' && site === 'jeonju' ? teamDetail ?? undefined : undefined,
+      );
     } catch (e: any) {
-      Alert.alert('회원가입 실패', e?.response?.data?.error || '오류');
+      Alert.alert('회원가입 실패', getErrorMessage(e));
     }
   };
 
@@ -77,6 +90,8 @@ export default function AuthScreen() {
         value={name}
         onChangeText={setName}
         style={styles.input}
+        autoCapitalize="none"
+        autoCorrect={false}
       />
       <View style={styles.row}>
         <Text>역할:</Text>

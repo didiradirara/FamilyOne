@@ -15,6 +15,7 @@ apiRouter.post('/auth/register', (req, res) => {
     res.status(201).json({ token, user });
 });
 apiRouter.post('/auth/login', (req, res) => {
+    console.log('[Auth] login request', req.body);
     const schema = z.object({ userId: z.string().uuid().optional(), name: z.string().optional() });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success)
@@ -24,9 +25,12 @@ apiRouter.post('/auth/login', (req, res) => {
         user = repo.findUserById(parsed.data.userId);
     else if (parsed.data.name)
         user = repo.findUserByName(parsed.data.name);
-    if (!user)
+    if (!user) {
+        console.warn('[Auth] login failed: user not found', req.body);
         return res.status(404).json({ error: 'User not found' });
+    }
     const token = signToken(user);
+    console.log('[Auth] login success', { userId: user.id });
     res.json({ token, user });
 });
 // Protect everything below
