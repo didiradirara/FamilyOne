@@ -7,7 +7,6 @@ import { createServer } from 'http';
 import { initDb, seedDb, sqlite } from './db/sqlite.js';
 import { initRealtime } from './realtime.js';
 import { apiRouter } from './routes/api.js';
-import { authRouter } from './routes/auth.js';
 
 initDb();
 seedDb();
@@ -25,8 +24,6 @@ const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
 try { fs.mkdirSync(uploadsDir, { recursive: true }); } catch {}
 app.use('/uploads', express.static(uploadsDir));
 
-app.use('/auth', authRouter);
-app.use('/api/auth', authRouter);
 app.use('/api', apiRouter);
 
 // Logs dir for maintenance
