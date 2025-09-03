@@ -10,8 +10,13 @@ export default function ChecklistScreen() {
   const [items, setItems] = useState<Item[]>([]);
 
   const load = async () => {
-    const res = await api.get('/api/checklists/templates/safety');
-    setItems(res.data);
+    try {
+      const res = await api.get('/api/checklists/templates/safety');
+      setItems(res.data);
+    } catch (e: any) {
+      console.error('[Checklist] Failed to load templates', e?.message || e);
+      Alert.alert('실패', e?.response?.data?.error || e?.message || '오류');
+    }
   };
   useEffect(() => { load(); }, []);
 
