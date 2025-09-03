@@ -34,6 +34,16 @@ export function setUnauthorizedHandler(fn: (() => void) | null) {
   onUnauthorized = fn;
 }
 
+export function getErrorMessage(e: any) {
+  if (!e) return '알 수 없는 오류';
+  return (
+    e?.response?.data?.error ||
+    (e?.message === 'Network Error'
+      ? '네트워크 오류: 서버에 연결할 수 없습니다.'
+      : e?.message || '알 수 없는 오류')
+  );
+}
+
 // Interceptors
 api.interceptors.response.use(
   (res) => res,
@@ -41,6 +51,9 @@ api.interceptors.response.use(
     const status = err?.response?.status;
     if (status === 401) {
       try { onUnauthorized?.(); } catch {}
+    }
+    if (err?.message === 'Network Error' && !err?.response) {
+      err.response = { data: { error: '네트워크 오류: 서버에 연결할 수 없습니다.' } } as any;
     }
     return Promise.reject(err);
   }
