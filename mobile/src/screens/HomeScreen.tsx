@@ -32,8 +32,10 @@ export default function HomeScreen() {
   useEffect(() => {
     const load = async () => {
       try {
+        
         const prod = await api.get('/api/productions/today');
         setTodayProducts(prod.data || []);
+        
       } catch {
         setTodayProducts([]);
       }
