@@ -1,7 +1,7 @@
 ﻿import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-const String apiBase = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:4000');
+const String apiBase = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://34.47.82.64');
 
 class ApiClient {
   final String base;
