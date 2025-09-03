@@ -1,4 +1,4 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -76,7 +76,8 @@ function cleanupUploads() {
 setInterval(cleanupUploads, 24 * 60 * 60 * 1000);
 setTimeout(cleanupUploads, 10_000);
 
-const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
+const PORT = process.env.PORT ? Number(process.env.PORT) : 80;
+
 const HOST = process.env.HOST || '0.0.0.0';
 const server = createServer(app);
 server.listen(PORT, HOST, () => {

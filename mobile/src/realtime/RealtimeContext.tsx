@@ -24,7 +24,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const extra: any = Constants.expoConfig?.extra || {};
-    const baseUrl: string = extra.API_BASE_URL || 'http://34.47.82.64:4000';
+
+    const baseUrl: string = extra.API_BASE_URL || 'http://34.47.82.64';
+
     const socket: Socket = io(baseUrl, { transports: ['websocket'], auth: token ? { token } : undefined });
 
     socket.on('connect', () => setConnected(true));
