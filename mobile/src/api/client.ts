@@ -34,13 +34,14 @@ export function setUnauthorizedHandler(fn: (() => void) | null) {
   onUnauthorized = fn;
 }
 
-export function getErrorMessage(e: any) {
-  if (!e) return '알 수 없는 오류';
+export function getErrorMessage(e: unknown) {
+  const err = e as any;
+  if (!err) return '알 수 없는 오류';
   return (
-    e?.response?.data?.error ||
-    (e?.message === 'Network Error'
+    err?.response?.data?.error ||
+    (err?.message === 'Network Error'
       ? '네트워크 오류: 서버에 연결할 수 없습니다.'
-      : e?.message || '알 수 없는 오류')
+      : err?.message || '알 수 없는 오류')
   );
 }
 

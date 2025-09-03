@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Button, Alert, Pressable, Modal, FlatList, StyleSheet } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
-import { api } from '../api/client';
+import { api, getErrorMessage } from '../api/client';
 
 export default function AuthScreen() {
   const { login, register, registering, loggingIn } = useAuth();
@@ -49,9 +49,6 @@ export default function AuthScreen() {
     }
   };
   useEffect(() => { loadTeams(site); }, [site]);
-
-  const getErrorMessage = (e: any) =>
-    e?.response?.data?.error || (e?.message === 'Network Error' ? '네트워크 오류: 서버에 연결할 수 없습니다.' : e?.message || '오류');
 
   const onLogin = async () => {
     try {
