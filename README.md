@@ -47,7 +47,9 @@ pm run ios
 - 실행: cd spring-server && mvnw.cmd spring-boot:run 또는 mvnw.cmd -DskipTests package 후 java -jar target/*.jar
 - 포트: 8080
 - 헬스체크: GET http://34.47.82.64:8080/health (외부) / http://10.178.0.2:8080/health (내부)
+
 - 루트: GET http://34.47.82.64:8080/ (헬스 정보 반환)
+
 - API 베이스: /api
 
 ### 엔드포인트(동일 스펙)
@@ -98,7 +100,8 @@ eadBy는 문자열 배열)
 
 ### 엔드포인트 영향
 - 모든 엔드포인트가 인메모리 대신 SQLite를 사용하도록 변경됨
-- 응답 스키마는 기존과 동일(예: 공지 eadBy는 문자열 배열)
+- 응답 스키마는 기존과 동일(예: 공지 
+eadBy는 문자열 배열)
 
 
 ## 실시간 알림 (Socket.IO)
