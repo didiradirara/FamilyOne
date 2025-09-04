@@ -11,10 +11,14 @@ const debuggerHost = Constants.expoGoConfig?.debuggerHost?.split(':')?.[0];
 // In development, Expo's debugger host resolves to the machine running the Metro
 // bundler. The API server listens on port 4000, so append it here to talk to the
 // local backend when available.
-const devBaseURL = __DEV__ && debuggerHost ? `http://${debuggerHost}` : undefined;
+const devBaseURL = __DEV__ && debuggerHost ? `http://${debuggerHost}:4000` : undefined;
+
+function normalizeBase(url: string | undefined) {
+  return (url || '').replace(/\/+$/, '');
+}
 
 export const api = axios.create({
-  baseURL: extra.API_BASE_URL || devBaseURL || defaultBaseURL,
+  baseURL: normalizeBase(extra.API_BASE_URL || devBaseURL || defaultBaseURL),
 });
 
 // Allow API_BASE_URL values that already include the "/api" prefix. When the
@@ -24,10 +28,9 @@ export const api = axios.create({
 // so ensure the base URL retains the trailing slash and trim the extra prefix
 // from the request path.
 api.interceptors.request.use((config) => {
-  const base = config.baseURL || '';
-  if (/\/api\/?$/.test(base) && config.url?.startsWith('/api/')) {
-    config.baseURL = base.endsWith('/') ? base : `${base}/`;
-    config.url = config.url.slice(5); // drop leading "/api/"
+  const base = normalizeBase(config.baseURL);
+  if (base.endsWith('/api') && config.url?.startsWith('/api/')) {
+    config.url = config.url.slice(4);
   }
   return config;
 });
