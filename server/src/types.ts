@@ -81,3 +81,9 @@ export interface Shift {
   userId: string;
   shift: 'A' | 'B' | 'C' | 'D';
 }
+
+export interface Production {
+  id: string;
+  date: string; // YYYY-MM-DD
+  name: string;
+}

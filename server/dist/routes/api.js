@@ -7,8 +7,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 export const apiRouter = express.Router();
 const logsDir = path.resolve(process.cwd(), 'server/logs');
+const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
 try {
     fs.mkdirSync(logsDir, { recursive: true });
+}
+catch { }
+try {
+    fs.mkdirSync(uploadsDir, { recursive: true });
 }
 catch { }
 function auditLog(line) {
@@ -33,19 +38,32 @@ apiRouter.get('/org/teams', (req, res) => {
     const out = rows.map((r) => ({ id: r.id, site: r.site, team: r.team, details: r.detailsJson ? JSON.parse(r.detailsJson) : [] }));
     res.json(out);
 });
+// Productions
+apiRouter.get('/productions/today', (_req, res) => {
+    const today = new Date().toISOString().slice(0, 10);
+    res.json(repo.listProductionsByDate(today));
+});
 // Reports
 apiRouter.post('/reports', (req, res) => {
     const schema = z.object({
         type: z.enum(['machine_fault', 'material_shortage', 'defect', 'other']),
         message: z.string().min(1),
-        createdBy: z.string().uuid(),
         images: z.array(z.string()).optional(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success)
         return res.status(400).json({ error: 'Invalid payload' });
-    const creator = repo.findUserById(parsed.data.createdBy);
-    const report = repo.createReport({ ...parsed.data, site: creator?.site, team: creator?.team, teamDetail: creator?.teamDetail });
+    const userId = req.auth?.sub;
+    if (!userId)
+        return res.status(401).json({ error: 'Unauthorized' });
+    const creator = repo.findUserById(userId);
+    const report = repo.createReport({
+        ...parsed.data,
+        createdBy: userId,
+        site: creator?.site,
+        team: creator?.team,
+        teamDetail: creator?.teamDetail,
+    });
     notify('report:new', report);
     res.status(201).json(report);
 });
@@ -88,7 +106,6 @@ apiRouter.patch('/reports/:id', requireRole('manager', 'admin'), (req, res) => {
         const r = repo.removeReportImages(req.params.id, toRemove);
         // Also try to delete local files for images under /uploads
         try {
-            const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
             for (const url of toRemove) {
                 if (!url || typeof url !== 'string')
                     continue;
@@ -166,7 +183,6 @@ apiRouter.delete('/reports/:id', (req, res) => {
     const out = repo.deleteReport(req.params.id);
     // Remove local files for uploads
     try {
-        const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
         for (const url of images) {
             if (!url || typeof url !== 'string')
                 continue;
@@ -370,7 +386,6 @@ apiRouter.post('/uploads/base64', (req, res) => {
     const b64 = m ? m[2] : data;
     const ext = m ? (m[1]?.split('/')[1] || 'bin') : 'bin';
     const safeName = (filename && filename.replace(/[^a-zA-Z0-9_.-]/g, '')) || `upload_${Date.now()}.${ext}`;
-    const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
     const filePath = path.join(uploadsDir, safeName);
     try {
         fs.writeFileSync(filePath, Buffer.from(b64, 'base64'));
@@ -402,7 +417,6 @@ apiRouter.post('/uploads/stream', (req, res) => {
     else if (ct === 'image/gif')
         ext = 'gif';
     const baseName = nameSrc || `upload_${Date.now()}.${ext}`;
-    const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
     const filePath = path.join(uploadsDir, baseName);
     // Enforce size limit
     const maxBytes = Number(process.env.UPLOAD_STREAM_MAX_BYTES || 25 * 1024 * 1024);

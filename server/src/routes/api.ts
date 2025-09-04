@@ -8,7 +8,9 @@ import path from 'node:path';
 
 export const apiRouter = express.Router();
 const logsDir = path.resolve(process.cwd(), 'server/logs');
+const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
 try { fs.mkdirSync(logsDir, { recursive: true }); } catch {}
+try { fs.mkdirSync(uploadsDir, { recursive: true }); } catch {}
 function auditLog(line: string) {
   try { fs.appendFileSync(path.join(logsDir, 'uploads-audit.log'), `[${new Date().toISOString()}] ${line}\n`); } catch {}
 }
@@ -30,6 +32,12 @@ apiRouter.get('/org/teams', (req, res) => {
   const rows = repo.listTeams(site);
   const out = rows.map((r: any) => ({ id: r.id, site: r.site, team: r.team, details: r.detailsJson ? JSON.parse(r.detailsJson) : [] }));
   res.json(out);
+});
+
+// Productions
+apiRouter.get('/productions/today', (_req, res) => {
+  const today = new Date().toISOString().slice(0,10);
+  res.json(repo.listProductionsByDate(today));
 });
 
 // Reports
@@ -86,7 +94,6 @@ apiRouter.patch('/reports/:id', requireRole('manager','admin'), (req, res) => {
     const r = repo.removeReportImages(req.params.id, toRemove as any);
     // Also try to delete local files for images under /uploads
     try {
-      const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
       for (const url of toRemove) {
         if (!url || typeof url !== 'string') continue;
         if (!url.startsWith('/uploads/')) continue;
@@ -145,7 +152,6 @@ apiRouter.delete('/reports/:id', (req, res) => {
   const out = repo.deleteReport(req.params.id) as any;
   // Remove local files for uploads
   try {
-    const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
     for (const url of images) {
       if (!url || typeof url !== 'string') continue;
       const name = url.startsWith('/uploads/') ? url.slice('/uploads/'.length) : (url.startsWith('uploads/') ? url.slice('uploads/'.length) : '');
@@ -278,7 +284,6 @@ apiRouter.post('/uploads/base64', (req, res) => {
   const b64 = m ? m[2] : data;
   const ext = m ? (m[1]?.split('/')[1] || 'bin') : 'bin';
   const safeName = (filename && filename.replace(/[^a-zA-Z0-9_.-]/g, '')) || `upload_${Date.now()}.${ext}`;
-  const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
   const filePath = path.join(uploadsDir, safeName);
   try {
     fs.writeFileSync(filePath, Buffer.from(b64, 'base64'));
@@ -306,7 +311,6 @@ apiRouter.post('/uploads/stream', (req, res) => {
   else if (ct === 'image/webp') ext = 'webp';
   else if (ct === 'image/gif') ext = 'gif';
   const baseName = nameSrc || `upload_${Date.now()}.${ext}`;
-  const uploadsDir = path.resolve(process.cwd(), 'server/uploads');
   const filePath = path.join(uploadsDir, baseName);
 
   // Enforce size limit

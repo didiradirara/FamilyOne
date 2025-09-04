@@ -12,8 +12,8 @@ export const db = {
 };
 // seed some demo users and checklists
 (function seed() {
-    const worker = { id: uuid(), name: '현장직A', role: 'worker' };
-    const manager = { id: uuid(), name: '관리자B', role: 'manager' };
+    const worker = { id: uuid(), name: '현장직A', role: 'worker', site: 'jeonju', team: '생산지원팀' };
+    const manager = { id: uuid(), name: '관리자B', role: 'manager', site: 'busan', team: '부산공장장' };
     db.users.set(worker.id, worker);
     db.users.set(manager.id, manager);
     db.checklistTemplates.set('safety', [

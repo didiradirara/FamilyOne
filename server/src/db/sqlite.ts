@@ -89,6 +89,12 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   reviewedAt TEXT
 );
 
+CREATE TABLE IF NOT EXISTS productions (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  name TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS shifts (
   id TEXT PRIMARY KEY,
   date TEXT NOT NULL,
@@ -168,6 +174,17 @@ export function seedDb() {
     });
     tx();
   }
+
+  // Seed productions for today if empty
+  try {
+    const countProd = sqlite.prepare('SELECT COUNT(*) as c FROM productions').get() as any;
+    if (!countProd || countProd.c === 0) {
+      const today = new Date().toISOString().slice(0,10);
+      const ins = sqlite.prepare('INSERT INTO productions (id,date,name) VALUES (?,?,?)');
+      ins.run(randomUUID(), today, '샘플제품A');
+      ins.run(randomUUID(), today, '샘플제품B');
+    }
+  } catch {}
 
   // Seed org structure (if empty)
   try {
