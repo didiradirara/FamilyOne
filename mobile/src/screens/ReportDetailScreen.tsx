@@ -117,11 +117,11 @@ export default function ReportDetailScreen({ route, navigation }: Props) {
     return urls;
   };
 
-  const addImageUrl = async () => {
-    if (!imgUrl.trim()) return;
-    await addImages([imgUrl.trim()]);
-    setImgUrl('');
-  };
+  // const addImageUrl = async () => {
+  //   if (!imgUrl.trim()) return;
+  //   await addImages([imgUrl.trim()]);
+  //   setImgUrl('');
+  // };
 
   const pickFromLibrary = async () => {
     try {
