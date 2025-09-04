@@ -7,6 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "build": "tsc",
     "clean": "rm -rf node_modules package-lock.json yarn.lock && npm cache verify"
   },
   "dependencies": {
