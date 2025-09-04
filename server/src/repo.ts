@@ -2,6 +2,15 @@
 import { v4 as uuid } from 'uuid';
 import type { Role, Report, RequestItem, Announcement, ChecklistSubmission, Suggestion, LeaveRequest, User } from './types.js';
 
+function buildFilter(filter?: { site?: string; team?: string; teamDetail?: string }) {
+  const where: string[] = [];
+  const params: any[] = [];
+  if (filter?.site) { where.push('site = ?'); params.push(filter.site); }
+  if (filter?.team) { where.push('team = ?'); params.push(filter.team); }
+  if (filter?.teamDetail) { where.push('teamDetail = ?'); params.push(filter.teamDetail); }
+  return { where, params };
+}
+
 export const repo = {
   // Users
   createUser(name: string, role: Role, site: 'hq'|'jeonju'|'busan', team: string, teamDetail?: string | null): User {
@@ -26,11 +35,7 @@ export const repo = {
     return { id, type: data.type as any, message: data.message, createdAt: now, createdBy: data.createdBy, status: 'new', images: data.images ?? [], site: data.site, team: data.team, teamDetail: data.teamDetail } as any;
   },
   listReports(filter?: { site?: string; team?: string; teamDetail?: string }): Report[] {
-    const where: string[] = [];
-    const params: any[] = [];
-    if (filter?.site) { where.push('site = ?'); params.push(filter.site); }
-    if (filter?.team) { where.push('team = ?'); params.push(filter.team); }
-    if (filter?.teamDetail) { where.push('teamDetail = ?'); params.push(filter.teamDetail); }
+    const { where, params } = buildFilter(filter);
     const sql = `SELECT * FROM reports ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY createdAt DESC`;
     const rows = sqlite.prepare(sql).all(...params) as any[];
     return rows.map(r => ({ ...r, images: r.imagesJson ? JSON.parse(r.imagesJson) : [] })) as any;
@@ -117,10 +122,7 @@ export const repo = {
     return { id, kind: data.kind as any, details: data.details, createdAt: now, createdBy: data.createdBy, state: 'pending', site: data.site, team: data.team, teamDetail: data.teamDetail } as any;
   },
   listRequests(filter?: { site?: string; team?: string; teamDetail?: string }): RequestItem[] {
-    const where: string[] = []; const params: any[] = [];
-    if (filter?.site) { where.push('site = ?'); params.push(filter.site); }
-    if (filter?.team) { where.push('team = ?'); params.push(filter.team); }
-    if (filter?.teamDetail) { where.push('teamDetail = ?'); params.push(filter.teamDetail); }
+    const { where, params } = buildFilter(filter);
     const sql = `SELECT * FROM requests ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY createdAt DESC`;
     return sqlite.prepare(sql).all(...params) as any;
   },
@@ -141,10 +143,7 @@ export const repo = {
     return sqlite.prepare('SELECT * FROM requests WHERE id=?').get(id) as any;
   },
   listAnnouncements(filter?: { site?: string; team?: string; teamDetail?: string }): Announcement[] {
-    const where: string[] = []; const params: any[] = [];
-    if (filter?.site) { where.push('site = ?'); params.push(filter.site); }
-    if (filter?.team) { where.push('team = ?'); params.push(filter.team); }
-    if (filter?.teamDetail) { where.push('teamDetail = ?'); params.push(filter.teamDetail); }
+    const { where, params } = buildFilter(filter);
     const sql = `SELECT * FROM announcements ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY createdAt DESC`;
     const rows = sqlite.prepare(sql).all(...params) as any[];
     return rows.map(r => ({ ...r, readBy: JSON.parse(r.readBy) })) as any;
