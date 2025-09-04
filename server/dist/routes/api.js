@@ -30,7 +30,8 @@ apiRouter.get('/org/teams', (req, res) => {
     res.json(out);
 });
 // Protect everything below
-apiRouter.use((req, res, next) => requireAuth(req, res, next));
+// Register auth middleware directly so Express handles it properly
+apiRouter.use(requireAuth);
 // Public org lookup (authenticated users)
 apiRouter.get('/org/teams', (req, res) => {
     const site = typeof req.query.site === 'string' ? req.query.site : undefined;
@@ -328,7 +329,11 @@ apiRouter.post('/leave-requests', (req, res) => {
     notify('leave:new', lr);
     res.status(201).json(lr);
 });
-apiRouter.get('/leave-requests', (_req, res) => { res.json(repo.listLeaveRequests()); });
+apiRouter.get('/leave-requests', (req, res) => {
+    const userId = req.query.userId;
+    const list = repo.listLeaveRequests();
+    res.json(userId ? list.filter((lr) => lr.userId === userId) : list);
+});
 apiRouter.patch('/leave-requests/:id/approve', requireRole('manager', 'admin'), (req, res) => {
     const schema = z.object({ reviewerId: z.string().uuid() });
     const parsed = schema.safeParse(req.body);

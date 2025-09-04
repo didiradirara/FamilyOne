@@ -38,12 +38,10 @@ export default function LeaveScreen() {
 
   const formatRange = (s: string, e: string) => `${formatDate(s)}~${formatDate(e)} ${diffDays(s, e)}일간`;
 
-  const stateLabels: Record<string, string> = { pending: '대기', approved: '승인', rejected: '반려' };
-
   const load = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/api/leave-requests');
+      const res = await api.get('/api/leave-requests', { params: { userId: user?.id } });
       setItems(res.data);
     } catch (e: any) {
       Alert.alert('실패', e?.response?.data?.error || '오류');
@@ -51,7 +49,7 @@ export default function LeaveScreen() {
       setLoading(false);
     }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [user?.id]);
 
   const validDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s).getTime());
   const validate = () => {
@@ -182,14 +180,14 @@ export default function LeaveScreen() {
       )}
       {error && <Text style={{ color: '#cc3333' }}>{error}</Text>}
       <Button title="신청" onPress={confirmSubmit} />
-      <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '600' }}>내 신청 목록</Text>
+      <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '600' }}>사용한 휴가</Text>
       <FlatList
-        data={items.filter((i) => i.userId === (user?.id || ''))}
+        data={items.filter((i) => i.state === 'approved' && new Date(i.endDate).getTime() < Date.now())}
         keyExtractor={(i) => i.id}
-        ListEmptyComponent={<Empty label="등록된 휴가가 없습니다." />}
+        ListEmptyComponent={<Empty label="사용한 휴가가 없습니다." />}
         renderItem={({ item }) => (
           <View style={{ padding: 8, borderWidth: 1, marginVertical: 4 }}>
-            <Text>({formatRange(item.startDate, item.endDate)}) / {stateLabels[item.state] || item.state}</Text>
+            <Text>{formatRange(item.startDate, item.endDate)}</Text>
           </View>
         )}
       />

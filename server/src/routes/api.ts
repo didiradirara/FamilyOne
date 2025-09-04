@@ -247,7 +247,11 @@ apiRouter.post('/leave-requests', (req, res) => {
   const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
   const lr = repo.createLeaveRequest(parsed.data as any); notify('leave:new', lr); res.status(201).json(lr);
 });
-apiRouter.get('/leave-requests', (_req, res) => { res.json(repo.listLeaveRequests()); });
+apiRouter.get('/leave-requests', (req, res) => {
+  const userId = req.query.userId as string | undefined;
+  const list = repo.listLeaveRequests();
+  res.json(userId ? list.filter((lr) => lr.userId === userId) : list);
+});
 apiRouter.patch('/leave-requests/:id/approve', requireRole('manager','admin'), (req, res) => {
   const schema = z.object({ reviewerId: z.string().uuid() });
   const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
