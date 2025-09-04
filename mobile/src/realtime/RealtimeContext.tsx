@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import Constants from 'expo-constants';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../auth/AuthContext';
@@ -42,8 +42,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     };
   }, [token]);
 
-  const clear = (key: keyof Counters) => setCounters(c => ({ ...c, [key]: 0 }));
-  const value = useMemo(() => ({ connected, counters, clear }), [connected, counters]);
+  const clear = useCallback((key: keyof Counters) => setCounters(c => ({ ...c, [key]: 0 })), []);
+  const value = useMemo(() => ({ connected, counters, clear }), [connected, counters, clear]);
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }
 
