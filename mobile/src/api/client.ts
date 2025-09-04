@@ -11,7 +11,7 @@ const debuggerHost = Constants.expoGoConfig?.debuggerHost?.split(':')?.[0];
 // In development, Expo's debugger host resolves to the machine running the Metro
 // bundler. The API server listens on port 4000, so append it here to talk to the
 // local backend when available.
-const devBaseURL = __DEV__ && debuggerHost ? `http://${debuggerHost}:4000` : undefined;
+const devBaseURL = __DEV__ && debuggerHost ? `http://${debuggerHost}` : undefined;
 
 export const api = axios.create({
   baseURL: extra.API_BASE_URL || devBaseURL || defaultBaseURL,
