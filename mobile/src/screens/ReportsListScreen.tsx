@@ -42,6 +42,8 @@ export default function ReportsListScreen({ navigation }: Props) {
     try {
       const res = await api.get('/api/reports', { params: { site: (user as any)?.site, team: selectedTeam !== 'all' ? selectedTeam : undefined } });
       setItems(res.data);
+    } catch (e: any) {
+      Alert.alert('실패', e?.response?.data?.error || '오류');
     } finally {
       setLoading(false);
     }

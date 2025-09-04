@@ -45,6 +45,8 @@ export default function LeaveScreen() {
     try {
       const res = await api.get('/api/leave-requests');
       setItems(res.data);
+    } catch (e: any) {
+      Alert.alert('실패', e?.response?.data?.error || '오류');
     } finally {
       setLoading(false);
     }

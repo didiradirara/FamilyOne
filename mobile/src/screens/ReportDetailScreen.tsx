@@ -62,6 +62,8 @@ export default function ReportDetailScreen({ route, navigation }: Props) {
       const res = await api.get('/api/reports');
       const found = (res.data as Report[]).find(r => r.id === id) || null;
       setItem(found);
+    } catch (e: any) {
+      Alert.alert('실패', e?.response?.data?.error || '오류');
     } finally {
       setLoading(false);
     }

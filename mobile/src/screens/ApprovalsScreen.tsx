@@ -23,15 +23,22 @@ export default function ApprovalsScreen() {
   const [DateTimePickerComp, setDateTimePickerComp] = useState<any>(null);
 
   const load = async () => {
-    const [r1, r2] = await Promise.all([
-      api.get('/api/requests'),
-      api.get('/api/leave-requests'),
-    ]);
-    setReqs(r1.data);
-    setLeaves(r2.data);
+    setLoading(true);
+    try {
+      const [r1, r2] = await Promise.all([
+        api.get('/api/requests'),
+        api.get('/api/leave-requests'),
+      ]);
+      setReqs(r1.data);
+      setLeaves(r2.data);
+    } catch (e: any) {
+      Alert.alert('실패', e?.response?.data?.error || '오류');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { (async () => { setLoading(true); await load(); setLoading(false); })(); }, []);
+  useEffect(() => { load(); }, []);
 
   const openNativePicker = (which: 'from'|'to') => {
     try {

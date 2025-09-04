@@ -23,6 +23,8 @@ export default function AnnouncementsScreen() {
     try {
       const res = await api.get('/api/announcements', { params: { site: (user as any)?.site, team: selectedTeam !== 'all' ? selectedTeam : undefined } });
       setItems(res.data);
+    } catch (e: any) {
+      Alert.alert('실패', e?.response?.data?.error || '오류');
     } finally {
       setLoading(false);
     }

@@ -9,8 +9,12 @@ export default function SuggestionsScreen() {
   const [items, setItems] = useState<Sug[]>([]);
 
   const load = async () => {
-    const res = await api.get('/api/suggestions');
-    setItems(res.data);
+    try {
+      const res = await api.get('/api/suggestions');
+      setItems(res.data);
+    } catch (e: any) {
+      Alert.alert('실패', e?.response?.data?.error || '오류');
+    }
   };
   useEffect(() => { load(); }, []);
 

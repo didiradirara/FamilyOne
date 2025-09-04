@@ -33,6 +33,8 @@ export default function RequestsScreen() {
       const list = res.data as any[];
       const filtered = selectedDetail === 'all' ? list : list.filter(x => x.teamDetail === selectedDetail);
       setItems(filtered as any);
+    } catch (e: any) {
+      Alert.alert('실패', e?.response?.data?.error || '오류');
     } finally {
       setLoading(false);
     }
