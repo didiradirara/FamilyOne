@@ -6,6 +6,7 @@ import axios from 'axios';
 // 2) In dev, fall back to the Metro host so the emulator talks to the local API.
 // 3) Finally, use the production host.
 const defaultBaseURL = 'http://34.47.82.64';
+//const defaultBaseURL = 'http://34.64.238.255';
 const extra = (Constants.expoConfig?.extra as any) || {};
 const debuggerHost = Constants.expoGoConfig?.debuggerHost?.split(':')?.[0];
 // In development, Expo's debugger host resolves to the machine running the Metro
