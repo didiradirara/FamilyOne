@@ -93,8 +93,8 @@ function cleanupUploads() {
 // Run daily and once on boot after delay
 setInterval(cleanupUploads, 24 * 60 * 60 * 1000);
 setTimeout(cleanupUploads, 10000);
-const PORT = process.env.PORT ? Number(process.env.PORT) : 80;
-const HOST = process.env.HOST || '0.0.0.0';
+const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
+const HOST = process.env.HOST || '127.0.0.1';
 const server = createServer(app);
 server.listen(PORT, HOST, () => {
     initRealtime(server);
