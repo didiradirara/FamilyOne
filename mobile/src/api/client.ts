@@ -17,14 +17,17 @@ export const api = axios.create({
   baseURL: extra.API_BASE_URL || devBaseURL || defaultBaseURL,
 });
 
-// Allow API_BASE_URL values that already include the "/api" prefix. If the
-// baseURL ends with "/api" and callers also prefix paths with "/api", strip
-// the duplicate segment so requests resolve correctly.
+// Allow API_BASE_URL values that already include the "/api" prefix. When the
+// base URL itself ends with "/api" and callers also prefix paths with "/api",
+// remove the duplicate segment so requests still resolve under the "/api"
+// namespace. Axios treats absolute paths (starting with "/") as root-relative,
+// so ensure the base URL retains the trailing slash and trim the extra prefix
+// from the request path.
 api.interceptors.request.use((config) => {
   const base = config.baseURL || '';
-  if (base.endsWith('/api') && config.url?.startsWith('/api/')) {
-    console.log("Running application API ininin");
-    config.url = config.url.slice(4);
+  if (/\/api\/?$/.test(base) && config.url?.startsWith('/api/')) {
+    config.baseURL = base.endsWith('/') ? base : `${base}/`;
+    config.url = config.url.slice(5); // drop leading "/api/"
   }
   return config;
 });
