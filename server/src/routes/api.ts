@@ -24,7 +24,8 @@ apiRouter.get('/org/teams', (req, res) => {
 });
 
 // Protect everything below
-apiRouter.use((req, res, next) => requireAuth(req, res, next));
+// Register auth middleware directly so Express handles it properly
+apiRouter.use(requireAuth);
 
 // Public org lookup (authenticated users)
 apiRouter.get('/org/teams', (req, res) => {
