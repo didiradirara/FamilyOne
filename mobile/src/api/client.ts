@@ -19,8 +19,8 @@ export const api = axios.create({
 // the duplicate segment so requests resolve correctly.
 api.interceptors.request.use((config) => {
   const base = config.baseURL || '';
-    console.log("Running application API ininin");
   if (base.endsWith('/api') && config.url?.startsWith('/api/')) {
+    console.log("Running application API ininin");
     config.url = config.url.slice(4);
   }
   return config;
