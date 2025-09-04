@@ -208,4 +208,14 @@ export const repo = {
     return sqlite.prepare('SELECT * FROM shifts WHERE id=?').get(id) as any;
   },
   deleteShift(id: string) { sqlite.prepare('DELETE FROM shifts WHERE id=?').run(id); return true; },
+
+  // Productions
+  createProduction(data: { date: string; name: string }) {
+    const id = uuid();
+    sqlite.prepare('INSERT INTO productions (id,date,name) VALUES (?,?,?)').run(id, data.date, data.name);
+    return { id, ...data } as any;
+  },
+  listProductionsByDate(date: string) {
+    return sqlite.prepare('SELECT * FROM productions WHERE date = ?').all(date) as any[];
+  },
 };
