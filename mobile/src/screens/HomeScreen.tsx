@@ -29,29 +29,29 @@ export default function HomeScreen() {
     setShowMemo(true);
   };
 
-  useEffect(() => {
-    console.log("ddddfff");
-    const load = async () => {
-      try {
+  // useEffect(() => {
+  //   console.log("ddddfff");
+  //   const load = async () => {
+  //     try {
         
-        const prod = await api.get('/api/productions/today');
+  //       const prod = await api.get('/api/productions/today');
         
-        setTodayProducts(prod.data || []);
+  //       setTodayProducts(prod.data || []);
         
-      } catch {
-        setTodayProducts([]);
-      }
-      try {
-        const res = await api.get('/api/leave-requests');
-        const today = new Date().toISOString().slice(0,10);
-        const list = (res.data || []).filter((l: any) => l.startDate <= today && l.endDate >= today);
-        setTodayLeaves(list);
-      } catch {
-        setTodayLeaves([]);
-      }
-    };
-    load();
-  }, []);
+  //     } catch {
+  //       setTodayProducts([]);
+  //     }
+  //     try {
+  //       const res = await api.get('/api/leave-requests');
+  //       const today = new Date().toISOString().slice(0,10);
+  //       const list = (res.data || []).filter((l: any) => l.startDate <= today && l.endDate >= today);
+  //       setTodayLeaves(list);
+  //     } catch {
+  //       setTodayLeaves([]);
+  //     }
+  //   };
+  //   load();
+  // }, []);
 
   const uploadAssetsStreaming = async (assets: any[]) => {
     const base = (api.defaults.baseURL || '').replace(/\/+$/, '');

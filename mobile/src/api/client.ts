@@ -8,7 +8,10 @@ import axios from 'axios';
 const defaultBaseURL = 'http://34.47.82.64';
 const extra = (Constants.expoConfig?.extra as any) || {};
 const debuggerHost = Constants.expoGoConfig?.debuggerHost?.split(':')?.[0];
-const devBaseURL = __DEV__ && debuggerHost ? `http://${debuggerHost}` : undefined;
+// In development, Expo's debugger host resolves to the machine running the Metro
+// bundler. The API server listens on port 4000, so append it here to talk to the
+// local backend when available.
+const devBaseURL = __DEV__ && debuggerHost ? `http://${debuggerHost}:4000` : undefined;
 
 export const api = axios.create({
   baseURL: extra.API_BASE_URL || devBaseURL || defaultBaseURL,
@@ -19,8 +22,8 @@ export const api = axios.create({
 // the duplicate segment so requests resolve correctly.
 api.interceptors.request.use((config) => {
   const base = config.baseURL || '';
-    console.log("Running application API ininin");
   if (base.endsWith('/api') && config.url?.startsWith('/api/')) {
+    console.log("Running application API ininin");
     config.url = config.url.slice(4);
   }
   return config;
