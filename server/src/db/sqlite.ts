@@ -90,6 +90,14 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   reviewedAt TEXT
 );
 
+-- Annual leave allocations per user per year
+CREATE TABLE IF NOT EXISTS leave_allocations (
+  userId TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  totalDays INTEGER NOT NULL,
+  PRIMARY KEY (userId, year)
+);
+
 CREATE TABLE IF NOT EXISTS productions (
   id TEXT PRIMARY KEY,
   date TEXT NOT NULL,

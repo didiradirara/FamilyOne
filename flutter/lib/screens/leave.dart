@@ -13,9 +13,38 @@ class _LeaveScreenState extends State<LeaveScreen> {
   final TextEditingController endCtrl = TextEditingController();
   final TextEditingController reasonCtrl = TextEditingController(text: '개인사유');
   List<dynamic> items = [];
+  int totalDays = 0;
+  int usedDays = 0;
+  int remainingDays = 0;
+
+  String _fmtKDate(DateTime d) {
+    final yy = d.year % 100;
+    return '${yy}년${d.month}월${d.day}일';
+  }
+  int _inclusiveDays(DateTime s, DateTime e) {
+    final sd = DateTime(s.year, s.month, s.day);
+    final ed = DateTime(e.year, e.month, e.day);
+    return ed.difference(sd).inDays.abs() + 1;
+  }
+  String _rangeWithDays(String s, String e) {
+    try {
+      final sd = DateTime.parse(s);
+      final ed = DateTime.parse(e);
+      final k = '${_fmtKDate(sd)}~${_fmtKDate(ed)}';
+      final days = _inclusiveDays(sd, ed);
+      return '$k (${days}일간)';
+    } catch (_) {
+      return '$s~$e';
+    }
+  }
   Future<void> load() async {
     final uid = ApiSession.userId ?? '';
+    final year = DateTime.now().year;
+    final summary = await api.get('/api/leave/summary?year=$year');
     items = await api.get('/api/leave-requests${uid.isEmpty ? '' : '?userId=$uid'}');
+    totalDays = (summary['totalDays'] ?? 0) as int;
+    usedDays = (summary['usedDays'] ?? 0) as int;
+    remainingDays = (summary['remainingDays'] ?? 0) as int;
     if (mounted) setState(() {});
   }
   @override void initState(){
@@ -79,10 +108,22 @@ class _LeaveScreenState extends State<LeaveScreen> {
         const SizedBox(height: 8),
         ElevatedButton(onPressed: promptSignature, child: const Text('신청')),
         const Divider(),
+        // Summary: 총 연차, 사용연차, 남은연차
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Wrap(spacing: 12, runSpacing: 8, children: [
+            Chip(label: Text('총 연차: ${totalDays}일')),
+            Chip(label: Text('사용 연차: ${usedDays}일')),
+            Chip(label: Text('남은 연차: ${remainingDays}일')),
+          ]),
+        ),
         Expanded(child: ListView.builder(itemCount: items.length, itemBuilder: (c,i){ final it = items[i]; return ListTile(
-          title: Text('${it['userId']} / ${it['startDate']}~${it['endDate']} / ${it['state']}'),
+          title: Text("${(it['userName']??it['userId'])} / ${_rangeWithDays((it['startDate']??'') as String, (it['endDate']??'') as String)} / ${it['state'] ?? ''}"),
           subtitle: Text(it['reason'] ?? ''),
-          trailing: (it['signature']??'').toString().isNotEmpty ? const Icon(Icons.image, color: Colors.teal) : null,
+          trailing: (it['signature']??'').toString().isNotEmpty
+              ? Image.network(ApiClient().base + (it['signature'] as String), width: 56, height: 40, fit: BoxFit.contain)
+              : null,
           onTap: (){
             final sig = (it['signature']??'') as String; if (sig.isEmpty) return;
             showDialog(context: context, builder: (_) => AlertDialog(content: Image.network(ApiClient().base + sig)));

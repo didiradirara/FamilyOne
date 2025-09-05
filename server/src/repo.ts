@@ -189,6 +189,39 @@ export const repo = {
     sqlite.prepare('UPDATE leave_requests SET state=?, reviewerId=?, reviewedAt=? WHERE id=?').run(state, reviewerId, ts, id);
     return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id) as any;
   },
+  // Leave allocations (annual leave totals)
+  upsertLeaveAllocation(userId: string, year: number, totalDays: number) {
+    sqlite.prepare('INSERT INTO leave_allocations (userId,year,totalDays) VALUES (?,?,?) ON CONFLICT(userId,year) DO UPDATE SET totalDays=excluded.totalDays')
+      .run(userId, year, totalDays);
+    return sqlite.prepare('SELECT * FROM leave_allocations WHERE userId=? AND year=?').get(userId, year) as any;
+  },
+  getLeaveAllocation(userId: string, year: number) {
+    return sqlite.prepare('SELECT * FROM leave_allocations WHERE userId=? AND year=?').get(userId, year) as any;
+  },
+  listLeaveAllocations(year?: number) {
+    if (typeof year === 'number') return sqlite.prepare('SELECT * FROM leave_allocations WHERE year=?').all(year) as any[];
+    return sqlite.prepare('SELECT * FROM leave_allocations').all() as any[];
+  },
+  computeApprovedLeaveDays(userId: string, year: number) {
+    const rows = sqlite.prepare('SELECT * FROM leave_requests WHERE userId=? AND state=?').all(userId, 'approved') as any[];
+    const yStart = new Date(Date.UTC(year, 0, 1));
+    const yEnd = new Date(Date.UTC(year, 11, 31));
+    let days = 0;
+    for (const r of rows) {
+      try {
+        const s = new Date(r.startDate);
+        const e = new Date(r.endDate);
+        if (isNaN(s.getTime()) || isNaN(e.getTime())) continue;
+        // Overlap within the year (inclusive)
+        const a = new Date(Math.max(s.getTime(), yStart.getTime()));
+        const b = new Date(Math.min(e.getTime(), yEnd.getTime()));
+        if (a.getTime() > b.getTime()) continue;
+        const diff = Math.floor((b.getTime() - a.getTime()) / (24*60*60*1000)) + 1; // inclusive days
+        days += diff > 0 ? diff : 0;
+      } catch {}
+    }
+    return days;
+  },
 
   // Schedule (shifts)
   createShift(data: { date: string; userId: string; shift: string }) {

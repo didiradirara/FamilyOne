@@ -259,7 +259,12 @@ apiRouter.post('/leave-requests', (req, res) => {
 apiRouter.get('/leave-requests', (req, res) => {
   const userId = req.query.userId as string | undefined;
   const list = repo.listLeaveRequests();
-  res.json(userId ? list.filter((lr) => lr.userId === userId) : list);
+  const filtered = userId ? list.filter((lr) => lr.userId === userId) : list;
+  const withNames = filtered.map((lr: any) => {
+    const u = repo.findUserById(lr.userId);
+    return { ...lr, userName: u?.name };
+  });
+  res.json(withNames);
 });
 apiRouter.patch('/leave-requests/:id/approve', requireRole('manager','admin'), (req, res) => {
   const schema = z.object({ reviewerId: z.string().uuid() });
@@ -286,6 +291,34 @@ apiRouter.patch('/schedule/:id', requireRole('manager','admin'), (req, res) => {
 });
 apiRouter.delete('/schedule/:id', requireRole('manager','admin'), (req, res) => {
   repo.deleteShift(req.params.id); res.sendStatus(204);
+});
+
+// Leave summary: total, used, remaining
+apiRouter.get('/leave/summary', (req, res) => {
+  const yearParam = req.query.year as string | undefined;
+  let year = new Date().getFullYear();
+  if (yearParam && /^\d{4}$/.test(yearParam)) year = Number(yearParam);
+  const userId = (req.query.userId as string | undefined) || req.auth?.sub;
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+  const alloc = repo.getLeaveAllocation(userId, year);
+  const totalDays = alloc?.totalDays ?? 0;
+  const usedDays = repo.computeApprovedLeaveDays(userId, year) ?? 0;
+  const remainingDays = Math.max(0, totalDays - usedDays);
+  res.json({ year, userId, totalDays, usedDays, remainingDays });
+});
+
+// Leave allocations (admin/manager): upsert and list
+apiRouter.post('/leave/allocations', requireRole('manager','admin'), (req, res) => {
+  const schema = z.object({ userId: z.string().uuid(), year: z.number().int().min(2000).max(3000), totalDays: z.number().int().min(0).max(365) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+  const row = repo.upsertLeaveAllocation(parsed.data.userId, parsed.data.year, parsed.data.totalDays);
+  res.status(201).json(row);
+});
+apiRouter.get('/leave/allocations', requireRole('manager','admin'), (req, res) => {
+  const year = typeof req.query.year === 'string' && /^\d{4}$/.test(req.query.year as string) ? Number(req.query.year) : undefined;
+  const list = repo.listLeaveAllocations(year);
+  res.json(list);
 });
 
 // Uploads (base64 JSON)
