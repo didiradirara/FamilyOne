@@ -5,7 +5,7 @@ import Signature from 'react-native-signature-canvas';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 
-type LR = { id: string; userId: string; startDate: string; endDate: string; state: string; signature?: string };
+type LR = { id: string; userId: string; startDate: string; endDate: string; state: string; reason?: string; signature?: string };
 
 export default function LeaveScreen() {
   const { user } = useAuth();
@@ -19,6 +19,7 @@ export default function LeaveScreen() {
     d.setDate(d.getDate() + 1);
     return d.toISOString().slice(0, 10);
   });
+  const [reason, setReason] = useState('개인 사유');
   const [items, setItems] = useState<LR[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showStartPicker, setShowStartPicker] = useState(false);
@@ -67,6 +68,7 @@ export default function LeaveScreen() {
         userId: user?.id || '00000000-0000-0000-0000-000000000000',
         startDate,
         endDate,
+        reason,
         signature: sig,
       });
       setStartDate(() => {
@@ -79,6 +81,7 @@ export default function LeaveScreen() {
         d.setDate(d.getDate() + 1);
         return d.toISOString().slice(0, 10);
       });
+      setReason('개인 사유');
       setError(null);
       await load();
     } catch (e: any) {
@@ -187,6 +190,12 @@ export default function LeaveScreen() {
           onChange={(_e: any, date?: Date) => { if (date) setEndDate(date.toISOString().slice(0,10)); setShowEndPicker(false); }}
         />
       )}
+      <TextInput
+        placeholder="휴가 사유"
+        value={reason}
+        onChangeText={setReason}
+        style={{ borderWidth: 1, padding: 8 }}
+      />
       {error && <Text style={{ color: '#cc3333' }}>{error}</Text>}
       <Button title="신청" onPress={confirmSubmit} />
       <Modal visible={signVisible} animationType="slide">
