@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   startDate TEXT NOT NULL,
   endDate TEXT NOT NULL,
   reason TEXT,
+  signature TEXT,
   state TEXT NOT NULL CHECK (state IN ('pending','approved','rejected')),
   reviewerId TEXT,
   reviewedAt TEXT
@@ -99,6 +100,14 @@ CREATE TABLE IF NOT EXISTS shifts (
 );
 `;
     sqlite.exec(schema);
+    // Migrations for leave_requests: add signature column if missing
+    try {
+        const cols = sqlite.prepare('PRAGMA table_info(leave_requests)').all();
+        const names = cols.map(c => c.name);
+        if (!names.includes('signature'))
+            sqlite.exec("ALTER TABLE leave_requests ADD COLUMN signature TEXT");
+    }
+    catch { }
     // Migrations for users: add site/team/teamDetail if missing
     try {
         const cols = sqlite.prepare('PRAGMA table_info(users)').all();
@@ -146,8 +155,15 @@ CREATE TABLE IF NOT EXISTS shifts (
             sqlite.exec("ALTER TABLE announcements ADD COLUMN site TEXT");
         if (!names.includes('team'))
             sqlite.exec("ALTER TABLE announcements ADD COLUMN team TEXT");
-        if (!names.includes('teamDetail'))
-            sqlite.exec("ALTER TABLE announcements ADD COLUMN teamDetail TEXT");
+    if (!names.includes('teamDetail'))
+        sqlite.exec("ALTER TABLE announcements ADD COLUMN teamDetail TEXT");
+    }
+    catch { }
+    // Migration for leave_requests: add signature column
+    try {
+        const cols = sqlite.prepare('PRAGMA table_info(leave_requests)').all();
+        if (!cols.some(c => c.name === 'signature'))
+            sqlite.exec("ALTER TABLE leave_requests ADD COLUMN signature TEXT");
     }
     catch { }
     // Org tables

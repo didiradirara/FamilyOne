@@ -69,6 +69,7 @@ public class Models {
     public String startDate;
     public String endDate;
     public String reason;
+    public String signature;
     public String state; // pending | approved | rejected
     public String reviewerId;
     public String reviewedAt;

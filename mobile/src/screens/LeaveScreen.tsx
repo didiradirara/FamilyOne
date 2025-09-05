@@ -1,10 +1,11 @@
-﻿﻿import { View, Text, TextInput, Button, FlatList, Alert, Platform, Modal } from 'react-native';
+﻿import { View, Text, TextInput, Button, FlatList, Alert, Platform, Modal } from 'react-native';
 import { Loading, Empty } from '../components/State';
 import React, { useEffect, useState } from 'react';
+import Signature from 'react-native-signature-canvas';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 
-type LR = { id: string; userId: string; startDate: string; endDate: string; state: string; reason?: string };
+type LR = { id: string; userId: string; startDate: string; endDate: string; state: string; signature?: string };
 
 export default function LeaveScreen() {
   const { user } = useAuth();
@@ -19,14 +20,12 @@ export default function LeaveScreen() {
     return d.toISOString().slice(0, 10);
   });
   const [items, setItems] = useState<LR[]>([]);
-  const [reason, setReason] = useState('개인사유');
   const [error, setError] = useState<string | null>(null);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [DateTimePickerComp, setDateTimePickerComp] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showSign, setShowSign] = useState(false);
-  const [signature, setSignature] = useState('');
+  const [signVisible, setSignVisible] = useState(false);
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
@@ -58,17 +57,16 @@ export default function LeaveScreen() {
   const validate = () => {
     if (!validDate(startDate) || !validDate(endDate)) return '날짜 형식은 YYYY-MM-DD 입니다.';
     if (new Date(endDate).getTime() < new Date(startDate).getTime()) return '종료일은 시작일 이후여야 합니다.';
-    if (!reason.trim()) return '사유를 입력하세요.';
     return null;
   };
 
-  const submit = async () => {
+  const submit = async (sig: string) => {
     try {
       await api.post('/api/leave-requests', {
         userId: user?.id || '00000000-0000-0000-0000-000000000000',
         startDate,
         endDate,
-        reason: reason.trim(),
+        signature: sig,
       });
       setStartDate(() => {
         const d = new Date();
@@ -80,7 +78,6 @@ export default function LeaveScreen() {
         d.setDate(d.getDate() + 1);
         return d.toISOString().slice(0, 10);
       });
-      setReason('개인사유');
       setError(null);
       await load();
     } catch (e: any) {
@@ -94,19 +91,13 @@ export default function LeaveScreen() {
     const msg = `(${formatRange(startDate, endDate)}) 신청하시겠습니까?`;
     Alert.alert('신청 확인', msg, [
       { text: '취소' },
-      { text: '확인', onPress: confirmSignature },
+      { text: '확인', onPress: () => setSignVisible(true) },
     ]);
   };
 
-  const confirmSignature = () => {
-    setSignature('');
-    setShowSign(true);
-  };
-
-  const signAndSubmit = () => {
-    if (!signature.trim()) { Alert.alert('필수', '서명을 입력하세요.'); return; }
-    setShowSign(false);
-    submit();
+  const handleSignature = (sig: string) => {
+    setSignVisible(false);
+    submit(sig);
   };
 
   const openNativePicker = (which: 'start' | 'end') => {
@@ -171,20 +162,14 @@ export default function LeaveScreen() {
         value={startDate}
         style={{ borderWidth: 1, padding: 8 }}
         editable={false}
-        onPressIn={() => openNativePicker('start')}
+        onFocus={() => openNativePicker('start')}
       />
       <TextInput
         placeholder="종료일 YYYY-MM-DD"
         value={endDate}
         style={{ borderWidth: 1, padding: 8 }}
         editable={false}
-        onPressIn={() => openNativePicker('end')}
-      />
-      <TextInput
-        placeholder="개인사유"
-        value={reason}
-        onChangeText={setReason}
-        style={{ borderWidth: 1, padding: 8 }}
+        onFocus={() => openNativePicker('end')}
       />
       {/* iOS inline picker rendering when available */}
       {Platform.OS === 'ios' && DateTimePickerComp && showStartPicker && (
@@ -203,35 +188,28 @@ export default function LeaveScreen() {
       )}
       {error && <Text style={{ color: '#cc3333' }}>{error}</Text>}
       <Button title="신청" onPress={confirmSubmit} />
-      <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '600' }}>신청한 휴가</Text>
+      <Modal visible={signVisible} animationType="slide">
+        <View style={{ flex: 1 }}>
+          <Signature
+            onOK={handleSignature}
+            onEmpty={() => Alert.alert('서명이 필요합니다')}
+            descriptionText="서명"
+            webStyle={`.m-signature-pad--footer {display: none; margin:0;}`}
+          />
+          <Button title="취소" onPress={() => setSignVisible(false)} />
+        </View>
+      </Modal>
+      <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '600' }}>사용한 휴가</Text>
       <FlatList
-        data={items}
+        data={items.filter((i) => i.state === 'approved' && new Date(i.endDate).getTime() < Date.now())}
         keyExtractor={(i) => i.id}
-        ListEmptyComponent={<Empty label="신청한 휴가가 없습니다." />}
+        ListEmptyComponent={<Empty label="사용한 휴가가 없습니다." />}
         renderItem={({ item }) => (
           <View style={{ padding: 8, borderWidth: 1, marginVertical: 4 }}>
             <Text>{formatRange(item.startDate, item.endDate)}</Text>
-            <Text>{item.state}</Text>
           </View>
         )}
       />
-      <Modal visible={showSign} transparent animationType="slide">
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 16, width: '80%' }}>
-            <Text style={{ fontSize: 16, marginBottom: 8 }}>서명</Text>
-            <TextInput
-              placeholder="서명 입력"
-              value={signature}
-              onChangeText={setSignature}
-              style={{ borderWidth: 1, padding: 8, marginBottom: 12 }}
-            />
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-              <Button title="취소" onPress={() => setShowSign(false)} />
-              <Button title="확인" onPress={signAndSubmit} />
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

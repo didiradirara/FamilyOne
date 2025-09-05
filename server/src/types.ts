@@ -70,6 +70,7 @@ export interface LeaveRequest {
   startDate: string;
   endDate: string;
   reason?: string;
+  signature?: string;
   state: 'pending' | 'approved' | 'rejected';
   reviewerId?: string;
   reviewedAt?: string;

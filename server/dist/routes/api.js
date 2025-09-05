@@ -321,7 +321,13 @@ apiRouter.post('/suggestions', (req, res) => {
 apiRouter.get('/suggestions', (_req, res) => { res.json(repo.listSuggestions()); });
 // Leave requests
 apiRouter.post('/leave-requests', (req, res) => {
-    const schema = z.object({ userId: z.string().uuid(), startDate: z.string(), endDate: z.string(), reason: z.string().optional() });
+    const schema = z.object({
+        userId: z.string().uuid(),
+        startDate: z.string(),
+        endDate: z.string(),
+        reason: z.string().optional(),
+        signature: z.string().optional(),
+    });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success)
         return res.status(400).json({ error: 'Invalid payload' });

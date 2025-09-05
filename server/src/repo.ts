@@ -179,8 +179,8 @@ export const repo = {
   // Leave requests
   createLeaveRequest(data: { userId: string; startDate: string; endDate: string; reason?: string }): LeaveRequest {
     const id = uuid();
-    sqlite.prepare('INSERT INTO leave_requests (id,userId,startDate,endDate,reason,state) VALUES (?,?,?,?,?,?)')
-      .run(id, data.userId, data.startDate, data.endDate, data.reason ?? null, 'pending');
+    sqlite.prepare('INSERT INTO leave_requests (id,userId,startDate,endDate,reason,signature,state) VALUES (?,?,?,?,?,?,?)')
+      .run(id, data.userId, data.startDate, data.endDate, data.reason ?? null, data.signature ?? null, 'pending');
     return { id, ...data, state: 'pending' } as any;
   },
   listLeaveRequests(): LeaveRequest[] { return sqlite.prepare('SELECT * FROM leave_requests ORDER BY startDate DESC').all() as any; },

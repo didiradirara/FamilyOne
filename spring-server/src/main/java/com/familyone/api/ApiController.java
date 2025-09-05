@@ -120,12 +120,12 @@ public class ApiController {
   public List<Suggestion> listSug() { return new ArrayList<>(db.suggestions.values()); }
 
   // Leave requests
-  public static class LeaveReq { public String userId; public String startDate; public String endDate; public String reason; }
+  public static class LeaveReq { public String userId; public String startDate; public String endDate; public String reason; public String signature; }
   @PostMapping("/leave-requests")
   public ResponseEntity<?> createLeave(@RequestBody LeaveReq req) {
     if (req == null || req.userId == null || req.startDate == null || req.endDate == null)
       return ResponseEntity.badRequest().body(Map.of("error","Invalid payload"));
-    LeaveRequest lr = new LeaveRequest(); lr.id = UUID.randomUUID().toString(); lr.userId = req.userId; lr.startDate = req.startDate; lr.endDate = req.endDate; lr.reason = req.reason; lr.state = "pending";
+    LeaveRequest lr = new LeaveRequest(); lr.id = UUID.randomUUID().toString(); lr.userId = req.userId; lr.startDate = req.startDate; lr.endDate = req.endDate; lr.reason = req.reason; lr.signature = req.signature; lr.state = "pending";
     db.leaveRequests.put(lr.id, lr); return ResponseEntity.status(201).body(lr);
   }
   @GetMapping("/leave-requests")

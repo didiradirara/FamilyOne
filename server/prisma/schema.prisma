@@ -132,6 +132,7 @@ model LeaveRequest {
   startDate  DateTime
   endDate    DateTime
   reason     String?
+  signature  String?
   state      ReviewState @default(pending)
   reviewerId String?
   reviewedAt DateTime?

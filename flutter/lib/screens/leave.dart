@@ -7,10 +7,43 @@ class _LeaveScreenState extends State<LeaveScreen> {
   final TextEditingController userCtrl = TextEditingController();
   final TextEditingController startCtrl = TextEditingController();
   final TextEditingController endCtrl = TextEditingController();
+  final TextEditingController reasonCtrl = TextEditingController(text: '개인사유');
   List<dynamic> items = [];
-  Future<void> load() async { items = await api.get('/api/leave-requests'); if (mounted) setState(() {}); }
+  Future<void> load() async {
+    final uid = userCtrl.text;
+    items = await api.get('/api/leave-requests${uid.isEmpty ? '' : '?userId=$uid'}');
+    if (mounted) setState(() {});
+  }
   @override void initState(){ super.initState(); load(); }
-  Future<void> submit() async { await api.post('/api/leave-requests', { 'userId': userCtrl.text.isEmpty ? '00000000-0000-0000-0000-000000000000' : userCtrl.text, 'startDate': startCtrl.text, 'endDate': endCtrl.text }); startCtrl.clear(); endCtrl.clear(); await load(); }
+  Future<void> submit(String signature) async {
+    await api.post('/api/leave-requests', {
+      'userId': userCtrl.text.isEmpty ? '00000000-0000-0000-0000-000000000000' : userCtrl.text,
+      'startDate': startCtrl.text,
+      'endDate': endCtrl.text,
+      'reason': reasonCtrl.text,
+      'signature': signature,
+    });
+    startCtrl.clear();
+    endCtrl.clear();
+    reasonCtrl.text = '개인사유';
+    await load();
+  }
+
+  Future<void> promptSignature() async {
+    final ctrl = TextEditingController();
+    final signed = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('서명'),
+        content: TextField(controller: ctrl, decoration: const InputDecoration(hintText: '서명 입력')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('확인')),
+        ],
+      ),
+    );
+    if (signed != null && signed.isNotEmpty) await submit(signed);
+  }
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -24,7 +57,9 @@ class _LeaveScreenState extends State<LeaveScreen> {
         const SizedBox(height: 8),
         TextField(controller: endCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '종료일 YYYY-MM-DD')),
         const SizedBox(height: 8),
-        ElevatedButton(onPressed: submit, child: const Text('신청')),
+        TextField(controller: reasonCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '개인사유')),
+        const SizedBox(height: 8),
+        ElevatedButton(onPressed: promptSignature, child: const Text('신청')),
         const Divider(),
         Expanded(child: ListView.builder(itemCount: items.length, itemBuilder: (c,i){ final it = items[i]; return ListTile(title: Text('${it['userId']} / ${it['startDate']}~${it['endDate']} / ${it['state']}')); }))
       ]),
