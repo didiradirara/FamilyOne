@@ -75,6 +75,39 @@ class _LeaveScreenState extends State<LeaveScreen> {
     await load();
   }
 
+  Future<void> _cancelLeaveDirect(String id) async {
+    try {
+      final res = await api.deleteRaw('/api/leave-requests/' + id);
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        await load();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('취소되었습니다')));
+      } else {
+        throw Exception(res.body);
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('취소 실패: $e')));
+    }
+  }
+
+  Future<void> _requestCancelApproved(String id) async {
+    try {
+      await api.post('/api/leave-requests/' + id + '/cancel-request', {});
+      await load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('취소신청 되었습니다')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('취소신청 실패: $e')));
+    }
+  }
+
+  String _stateKo(String? s) {
+    switch (s) {
+      case 'pending': return '대기';
+      case 'approved': return '승인';
+      case 'rejected': return '거절';
+      default: return s ?? '-';
+    }
+  }
+
   Future<void> promptSignature() async {
     final url = await showDialog<String>(
       context: context,
@@ -118,17 +151,41 @@ class _LeaveScreenState extends State<LeaveScreen> {
             Chip(label: Text('남은 연차: ${remainingDays}일')),
           ]),
         ),
-        Expanded(child: ListView.builder(itemCount: items.length, itemBuilder: (c,i){ final it = items[i]; return ListTile(
-          title: Text("${(it['userName']??it['userId'])} / ${_rangeWithDays((it['startDate']??'') as String, (it['endDate']??'') as String)} / ${it['state'] ?? ''}"),
-          subtitle: Text(it['reason'] ?? ''),
-          trailing: (it['signature']??'').toString().isNotEmpty
-              ? Image.network(ApiClient().base + (it['signature'] as String), width: 56, height: 40, fit: BoxFit.contain)
-              : null,
-          onTap: (){
-            final sig = (it['signature']??'') as String; if (sig.isEmpty) return;
-            showDialog(context: context, builder: (_) => AlertDialog(content: Image.network(ApiClient().base + sig)));
-          },
-        ); }))
+        Expanded(child: ListView.builder(itemCount: items.length, itemBuilder: (c,i){
+          final it = items[i] as Map<String, dynamic>;
+          final isMine = (ApiSession.userId ?? '') == (it['userId'] ?? '');
+          final state = (it['state'] ?? '') as String?;
+          final cancelState = (it['cancelState'] ?? 'none') as String;
+          final statusText = _stateKo(state) + (cancelState == 'requested' ? ' (취소요청)' : '');
+          final sigUrl = (it['signature'] ?? '') as String;
+          return ListTile(
+            title: Text("${(it['userName']??it['userId'])} / ${_rangeWithDays((it['startDate']??'') as String, (it['endDate']??'') as String)} / $statusText"),
+            subtitle: Text((it['reason'] ?? '') as String),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              if (sigUrl.isNotEmpty) Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Image.network(ApiClient().base + sigUrl, width: 56, height: 40, fit: BoxFit.contain),
+              ),
+              if (isMine && cancelState != 'requested')
+                if (state == 'approved')
+                  IconButton(
+                    tooltip: '취소신청',
+                    icon: const Icon(Icons.undo, color: Colors.orange),
+                    onPressed: () => _requestCancelApproved((it['id'] ?? '') as String),
+                  )
+                else
+                  IconButton(
+                    tooltip: '취소',
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _cancelLeaveDirect((it['id'] ?? '') as String),
+                  ),
+            ]),
+            onTap: (){
+              if (sigUrl.isEmpty) return;
+              showDialog(context: context, builder: (_) => AlertDialog(content: Image.network(ApiClient().base + sigUrl)));
+            },
+          );
+        }))
       ]),
     );
   }
@@ -184,7 +241,8 @@ class _SignatureDialogState extends State<_SignatureDialog> {
     final b64 = base64Encode(bytes);
     final dataUrl = 'data:image/png;base64,' + b64;
     try {
-      final res = await widget.api.post('/api/uploads/base64', { 'data': dataUrl, 'filename': 'signature.png' });
+      // Omit filename to avoid overwriting and ensure unique storage name
+      final res = await widget.api.post('/api/uploads/base64', { 'data': dataUrl });
       final url = res['url'] as String?;
       if (mounted) Navigator.of(context).pop(url);
     } catch (_) {

@@ -189,6 +189,18 @@ export const repo = {
     sqlite.prepare('UPDATE leave_requests SET state=?, reviewerId=?, reviewedAt=? WHERE id=?').run(state, reviewerId, ts, id);
     return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id) as any;
   },
+  getLeaveById(id: string) { return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id) as any; },
+  deleteLeave(id: string) { sqlite.prepare('DELETE FROM leave_requests WHERE id=?').run(id); return true; },
+  requestLeaveCancel(id: string, userId: string, reason?: string) {
+    const row = sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id) as any;
+    if (!row) return undefined;
+    if (row.userId !== userId) return null; // forbidden
+    if (row.state !== 'approved') return null; // only approved can request cancel
+    const ts = new Date().toISOString();
+    sqlite.prepare('UPDATE leave_requests SET cancelState=?, cancelReason=?, cancelRequestedAt=? WHERE id=?')
+      .run('requested', reason ?? null, ts, id);
+    return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id) as any;
+  },
   // Leave allocations (annual leave totals)
   upsertLeaveAllocation(userId: string, year: number, totalDays: number) {
     sqlite.prepare('INSERT INTO leave_allocations (userId,year,totalDays) VALUES (?,?,?) ON CONFLICT(userId,year) DO UPDATE SET totalDays=excluded.totalDays')

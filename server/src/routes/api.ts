@@ -266,6 +266,27 @@ apiRouter.get('/leave-requests', (req, res) => {
   });
   res.json(withNames);
 });
+apiRouter.delete('/leave-requests/:id', (req, res) => {
+  const id = req.params.id;
+  const row = repo.getLeaveById(id);
+  if (!row) return res.sendStatus(404);
+  const userId = req.auth?.sub;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  if (row.userId !== userId) return res.status(403).json({ error: 'Forbidden' });
+  if (row.state === 'approved') return res.status(409).json({ error: 'Approved leave cannot be directly deleted' });
+  repo.deleteLeave(id);
+  res.sendStatus(204);
+});
+apiRouter.post('/leave-requests/:id/cancel-request', (req, res) => {
+  const id = req.params.id;
+  const userId = req.auth?.sub;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+  const updated = repo.requestLeaveCancel(id, userId, reason);
+  if (updated === undefined) return res.sendStatus(404);
+  if (updated === null) return res.status(409).json({ error: 'Not allowed' });
+  res.json(updated);
+});
 apiRouter.patch('/leave-requests/:id/approve', requireRole('manager','admin'), (req, res) => {
   const schema = z.object({ reviewerId: z.string().uuid() });
   const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
