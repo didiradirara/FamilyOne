@@ -177,7 +177,7 @@ export const repo = {
   listSuggestions(): Suggestion[] { return sqlite.prepare('SELECT * FROM suggestions ORDER BY createdAt DESC').all() as any; },
 
   // Leave requests
-  createLeaveRequest(data: { userId: string; startDate: string; endDate: string; reason?: string }): LeaveRequest {
+  createLeaveRequest(data: { userId: string; startDate: string; endDate: string; reason?: string; signature?: string }): LeaveRequest {
     const id = uuid();
     sqlite.prepare('INSERT INTO leave_requests (id,userId,startDate,endDate,reason,signature,state) VALUES (?,?,?,?,?,?,?)')
       .run(id, data.userId, data.startDate, data.endDate, data.reason ?? null, data.signature ?? null, 'pending');

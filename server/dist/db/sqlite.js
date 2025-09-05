@@ -101,13 +101,13 @@ CREATE TABLE IF NOT EXISTS shifts (
 `;
     sqlite.exec(schema);
     // Migrations for leave_requests: add signature column if missing
+     // Migrations for leave_requests: add signature column if missing
     try {
-        const cols = sqlite.prepare('PRAGMA table_info(leave_requests)').all();
+        const cols = sqlite.prepare('PRAGMA table_info(leave_requests)').all() as any[];
         const names = cols.map(c => c.name);
-        if (!names.includes('signature'))
-            sqlite.exec("ALTER TABLE leave_requests ADD COLUMN signature TEXT");
-    }
-    catch { }
+        if (!names.includes('signature')) sqlite.exec("ALTER TABLE leave_requests ADD COLUMN signature TEXT");
+    } catch {}
+
     // Migrations for users: add site/team/teamDetail if missing
     try {
         const cols = sqlite.prepare('PRAGMA table_info(users)').all();
