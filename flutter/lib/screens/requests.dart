@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import '../api/client.dart';
+import '../api/session.dart';
+import '../realtime/realtime.dart';
 
 class RequestsScreen extends StatefulWidget { const RequestsScreen({super.key}); @override State<RequestsScreen> createState()=>_RequestsScreenState(); }
 class _RequestsScreenState extends State<RequestsScreen> {
@@ -10,12 +12,13 @@ class _RequestsScreenState extends State<RequestsScreen> {
 
   Future<void> load() async { items = await api.get('/api/requests'); if (mounted) setState(() {}); }
   @override void initState(){ super.initState(); load(); }
+  @override void didChangeDependencies(){ super.didChangeDependencies(); try { RealtimeStore.I.clear('requests'); } catch (_) {} }
 
   Future<void> submit() async {
     await api.post('/api/requests', {
       'kind': 'material_add',
       'details': detailsCtrl.text,
-      'createdBy': userCtrl.text.isEmpty ? '00000000-0000-0000-0000-000000000000' : userCtrl.text,
+      'createdBy': userCtrl.text.isNotEmpty ? userCtrl.text : (ApiSession.userId ?? '00000000-0000-0000-0000-000000000000'),
     });
     detailsCtrl.clear(); await load();
   }
