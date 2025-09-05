@@ -344,6 +344,14 @@ apiRouter.get('/leave/allocations', requireRole('manager','admin'), (req, res) =
 
 // Uploads (base64 JSON)
 apiRouter.post('/uploads/base64', (req, res) => {
+  function uniqueName(base: string) {
+    // ensure unique filename by appending timestamp + random token before extension
+    const dot = base.lastIndexOf('.');
+    const name = dot > 0 ? base.slice(0, dot) : base;
+    const ext = dot > 0 ? base.slice(dot) : '';
+    const token = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    return `${name}_${token}${ext}`;
+  }
   const schema = z.object({ filename: z.string().optional(), data: z.string() });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
@@ -351,15 +359,16 @@ apiRouter.post('/uploads/base64', (req, res) => {
   const m = /^data:(.*?);base64,(.*)$/.exec(data);
   const b64 = m ? m[2] : data;
   const ext = m ? (m[1]?.split('/')[1] || 'bin') : 'bin';
-  const safeName = (filename && filename.replace(/[^a-zA-Z0-9_.-]/g, '')) || `upload_${Date.now()}.${ext}`;
-  const filePath = path.join(uploadsDir, safeName);
+  const provided = (filename && filename.replace(/[^a-zA-Z0-9_.-]/g, '')) || `upload.${ext}`;
+  const finalName = uniqueName(provided);
+  const filePath = path.join(uploadsDir, finalName);
   try {
     fs.writeFileSync(filePath, Buffer.from(b64, 'base64'));
-    const url = `/uploads/${safeName}`;
-    auditLog(`UPLOAD OK ${safeName}`);
+    const url = `/uploads/${finalName}`;
+    auditLog(`UPLOAD OK ${finalName}`);
     res.status(201).json({ url });
   } catch (e) {
-    auditLog(`UPLOAD FAIL ${safeName || 'unknown'} ${(e as any)?.message || ''}`);
+    auditLog(`UPLOAD FAIL ${finalName || 'unknown'} ${(e as any)?.message || ''}`);
     res.status(500).json({ error: 'Failed to save file' });
   }
 });
@@ -367,6 +376,13 @@ apiRouter.post('/uploads/base64', (req, res) => {
 // Uploads (streaming, application/octet-stream)
 // Usage: POST /api/uploads/stream?filename=foo.jpg with raw body, or send header x-filename
 apiRouter.post('/uploads/stream', (req, res) => {
+  function uniqueName(base: string) {
+    const dot = base.lastIndexOf('.');
+    const name = dot > 0 ? base.slice(0, dot) : base;
+    const ext = dot > 0 ? base.slice(dot) : '';
+    const token = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    return `${name}_${token}${ext}`;
+  }
   // Only allow non-JSON raw bodies here. express.json doesn't consume octet-stream
   const headerName = (req.headers['x-filename'] as string | undefined) || '';
   const qName = typeof req.query.filename === 'string' ? (req.query.filename as string) : '';
@@ -378,8 +394,9 @@ apiRouter.post('/uploads/stream', (req, res) => {
   else if (ct === 'image/png') ext = 'png';
   else if (ct === 'image/webp') ext = 'webp';
   else if (ct === 'image/gif') ext = 'gif';
-  const baseName = nameSrc || `upload_${Date.now()}.${ext}`;
-  const filePath = path.join(uploadsDir, baseName);
+  const baseName = nameSrc || `upload.${ext}`;
+  const finalName = uniqueName(baseName);
+  const filePath = path.join(uploadsDir, finalName);
 
   // Enforce size limit
   const maxBytes = Number(process.env.UPLOAD_STREAM_MAX_BYTES || 25 * 1024 * 1024);
@@ -403,17 +420,17 @@ apiRouter.post('/uploads/stream', (req, res) => {
     });
     req.pipe(ws);
     ws.on('finish', () => {
-      const url = `/uploads/${baseName}`;
-      auditLog(`STREAM OK ${baseName} ${written}b`);
+      const url = `/uploads/${finalName}`;
+      auditLog(`STREAM OK ${finalName} ${written}b`);
       res.status(201).json({ url });
     });
     ws.on('error', (e) => {
-      auditLog(`STREAM FAIL ${baseName} ${(e as any)?.message || ''}`);
+      auditLog(`STREAM FAIL ${finalName} ${(e as any)?.message || ''}`);
       try { fs.unlinkSync(filePath); } catch {}
       res.status(500).json({ error: 'Failed to save file' });
     });
   } catch (e) {
-    auditLog(`STREAM EXC ${baseName} ${(e as any)?.message || ''}`);
+    auditLog(`STREAM EXC ${finalName} ${(e as any)?.message || ''}`);
     return res.status(500).json({ error: 'Failed to init stream' });
   }
 });
