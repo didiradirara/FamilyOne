@@ -1,7 +1,7 @@
-﻿import { View, Text, TextInput, Button, FlatList, Alert, Platform, Modal } from 'react-native';
+﻿﻿import { View, Text, TextInput, Button, FlatList, Alert, Platform, Modal } from 'react-native';
 import { Loading, Empty } from '../components/State';
-import React, { useEffect, useState } from 'react';
-//import Signature from 'react-native-signature-canvas';
+import React, { useEffect, useState, useRef } from 'react';
+import Signature from 'react-native-signature-canvas';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 
@@ -26,6 +26,7 @@ export default function LeaveScreen() {
   const [DateTimePickerComp, setDateTimePickerComp] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [signVisible, setSignVisible] = useState(false);
+  const signRef = useRef<any>(null);
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
@@ -190,13 +191,23 @@ export default function LeaveScreen() {
       <Button title="신청" onPress={confirmSubmit} />
       <Modal visible={signVisible} animationType="slide">
         <View style={{ flex: 1 }}>
-          {/* <Signature
+          <Signature
+            ref={signRef}
             onOK={handleSignature}
             onEmpty={() => Alert.alert('서명이 필요합니다')}
             descriptionText="서명"
             webStyle={`.m-signature-pad--footer {display: none; margin:0;}`}
-          /> */}
-          <Button title="취소" onPress={() => setSignVisible(false)} />
+          />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+            <Button title="확인" onPress={() => signRef.current?.readSignature()} />
+            <Button
+              title="취소"
+              onPress={() => {
+                signRef.current?.clearSignature();
+                setSignVisible(false);
+              }}
+            />
+          </View>
         </View>
       </Modal>
       <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '600' }}>사용한 휴가</Text>
