@@ -9,7 +9,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
   Future<void> load() async { items = await api.get('/api/checklists/templates/safety'); if (mounted) setState(() {}); }
   @override void initState(){ super.initState(); load(); }
   Future<void> submit() async {
-    await api.post('/api/checklists/submit', { 'date': DateTime.now().toIso8601String().substring(0,10), 'userId': (ApiSession.userId ?? '00000000-0000-0000-0000-000000000000'), 'category': 'safety', 'items': items });
+    final uid = ApiSession.userId ?? '';
+    if (uid.isEmpty) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다'))); return; }
+    await api.post('/api/checklists/submit', { 'date': DateTime.now().toIso8601String().substring(0,10), 'userId': uid, 'category': 'safety', 'items': items });
     if (!mounted) return; ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('체크 완료')));
   }
   @override

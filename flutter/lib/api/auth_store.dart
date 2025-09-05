@@ -30,7 +30,8 @@ Future<bool> loadAuth() async {
     ApiSession.userName = user['name'] as String?;
     ApiSession.role = user['role'] as String?;
     ApiSession.site = user['site'] as String?;
+    ApiSession.team = user['team'] as String?;
+    ApiSession.teamDetail = user['teamDetail'] as String?;
   }
   return (ApiSession.token ?? '').isNotEmpty;
 }
-

@@ -8,16 +8,20 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   final ApiClient api = ApiClient();
   final TextEditingController titleCtrl = TextEditingController();
   final TextEditingController bodyCtrl = TextEditingController();
-  final TextEditingController userCtrl = TextEditingController();
   List<dynamic> items = [];
   Future<void> load() async { items = await api.get('/api/announcements'); if (mounted) setState(() {}); }
   @override void initState(){ super.initState(); load(); try { RealtimeStore.I.clear('announcements'); } catch (_) {} }
 
   Future<void> submit() async {
+    final uid = ApiSession.userId ?? '';
+    if (uid.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다')));
+      return;
+    }
     await api.post('/api/announcements', {
       'title': titleCtrl.text,
       'body': bodyCtrl.text,
-      'createdBy': userCtrl.text.isNotEmpty ? userCtrl.text : (ApiSession.userId ?? '00000000-0000-0000-0000-000000000000'),
+      'createdBy': uid,
     });
     titleCtrl.clear(); bodyCtrl.clear(); await load();
   }
@@ -37,8 +41,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         const Text('공지', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         if (canCreate) ...[
-          TextField(controller: userCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '작성자 userId(UUID)')),
-          const SizedBox(height: 8),
           TextField(controller: titleCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '제목')),
           const SizedBox(height: 8),
           TextField(controller: bodyCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '내용')),

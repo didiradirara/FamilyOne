@@ -9,13 +9,12 @@ import 'package:flutter/rendering.dart';
 class LeaveScreen extends StatefulWidget { const LeaveScreen({super.key}); @override State<LeaveScreen> createState()=>_LeaveScreenState(); }
 class _LeaveScreenState extends State<LeaveScreen> {
   final ApiClient api = ApiClient();
-  final TextEditingController userCtrl = TextEditingController();
   final TextEditingController startCtrl = TextEditingController();
   final TextEditingController endCtrl = TextEditingController();
   final TextEditingController reasonCtrl = TextEditingController(text: '개인사유');
   List<dynamic> items = [];
   Future<void> load() async {
-    final uid = userCtrl.text.isNotEmpty ? userCtrl.text : (ApiSession.userId ?? '');
+    final uid = ApiSession.userId ?? '';
     items = await api.get('/api/leave-requests${uid.isEmpty ? '' : '?userId=$uid'}');
     if (mounted) setState(() {});
   }
@@ -27,8 +26,15 @@ class _LeaveScreenState extends State<LeaveScreen> {
     load();
   }
   Future<void> submit(String signature) async {
+    final uid = ApiSession.userId ?? '';
+    if (uid.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다')));
+      }
+      return;
+    }
     await api.post('/api/leave-requests', {
-      'userId': userCtrl.text.isEmpty ? '00000000-0000-0000-0000-000000000000' : userCtrl.text,
+      'userId': uid,
       'startDate': startCtrl.text,
       'endDate': endCtrl.text,
       'reason': reasonCtrl.text,
@@ -54,8 +60,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
       child: Column(children: [
         const Text('휴가 신청', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        TextField(controller: userCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'userId(UUID)')),
-        const SizedBox(height: 8),
+        // 사용자 ID 입력 제거: 로그인 사용자로 자동 처리
         Row(children: [
           ElevatedButton(onPressed: (){ final d=DateTime.now(); startCtrl.text=d.toIso8601String().substring(0,10); setState((){}); }, child: const Text('시작=오늘')),
           const SizedBox(width: 8),
@@ -102,14 +107,12 @@ class _SignatureDialogState extends State<_SignatureDialog> {
   bool get _hasInk => _strokes.any((s) => s.length > 1);
 
   void _onPanStart(DragStartDetails d) {
-    final box = context.findRenderObject() as RenderBox?;
-    final p = box?.globalToLocal(d.globalPosition) ?? d.localPosition;
+    final p = d.localPosition;
     setState(() => _strokes.add([p]));
   }
 
   void _onPanUpdate(DragUpdateDetails d) {
-    final box = context.findRenderObject() as RenderBox?;
-    final p = box?.globalToLocal(d.globalPosition) ?? d.localPosition;
+    final p = d.localPosition;
     setState(() => _strokes.last.add(p));
   }
 
@@ -215,5 +218,5 @@ class _SignaturePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SignaturePainter oldDelegate) => !identical(oldDelegate.strokes, strokes);
+  bool shouldRepaint(covariant _SignaturePainter oldDelegate) => true;
 }

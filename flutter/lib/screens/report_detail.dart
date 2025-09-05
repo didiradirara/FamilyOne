@@ -36,7 +36,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
 
   Future<void> saveMessage() async {
     try {
-      await api.post('/api/reports/${widget.id}/self', { 'message': msgCtrl.text });
+      await api.patch('/api/reports/${widget.id}/self', { 'message': msgCtrl.text });
       setState(()=>editing=false); await load();
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('메시지 저장 실패')));
@@ -49,14 +49,22 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
 
   Future<void> addImage() async {
     try {
+      final src = await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(leading: const Icon(Icons.photo_library), title: const Text('앨범에서 선택'), onTap: () => Navigator.pop(context, ImageSource.gallery)),
+          ListTile(leading: const Icon(Icons.photo_camera), title: const Text('카메라로 촬영'), onTap: () => Navigator.pop(context, ImageSource.camera)),
+        ])),
+      );
+      if (src == null) return;
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
+      final picked = await picker.pickImage(source: src, maxWidth: 1600, imageQuality: 85);
       if (picked == null) return;
       final bytes = await picked.readAsBytes();
       final dataUrl = 'data:image/${picked.path.endsWith('.png') ? 'png' : 'jpeg'};base64,' + base64Encode(bytes);
       final up = await api.post('/api/uploads/base64', { 'data': dataUrl, 'filename': picked.name });
       final url = up['url'] as String;
-      try { await api.post('/api/reports/${widget.id}/self', { 'addImages': [url] }); }
+      try { await api.patch('/api/reports/${widget.id}/self', { 'addImages': [url] }); }
       catch (_) { await api.patch('/api/reports/${widget.id}', { 'addImages': [url] }); }
       await load();
     } catch (_) {
@@ -66,7 +74,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
 
   Future<void> removeImage(String url) async {
     try {
-      try { await api.post('/api/reports/${widget.id}/self', { 'removeImages': [url] }); }
+      try { await api.patch('/api/reports/${widget.id}/self', { 'removeImages': [url] }); }
       catch (_) { await api.patch('/api/reports/${widget.id}', { 'removeImages': [url] }); }
       await load();
     } catch (_) {
@@ -140,4 +148,3 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 }
-

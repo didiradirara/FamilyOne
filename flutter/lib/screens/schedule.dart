@@ -10,7 +10,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   List<dynamic> items = [];
   bool loading = true;
   final dateCtrl = TextEditingController();
-  final userCtrl = TextEditingController();
   final shiftCtrl = TextEditingController(text: 'A');
 
   bool get canEdit => (ApiSession.role == 'manager' || ApiSession.role == 'admin');
@@ -20,8 +19,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   Future<void> add() async {
     try {
-      await api.post('/api/schedule', { 'date': dateCtrl.text, 'userId': userCtrl.text.isNotEmpty ? userCtrl.text : (ApiSession.userId ?? '00000000-0000-0000-0000-000000000000'), 'shift': shiftCtrl.text });
-      dateCtrl.clear(); userCtrl.clear(); shiftCtrl.text = 'A'; await load();
+      final uid = ApiSession.userId ?? '';
+      if (uid.isEmpty) throw Exception('로그인이 필요합니다');
+      await api.post('/api/schedule', { 'date': dateCtrl.text, 'userId': uid, 'shift': shiftCtrl.text });
+      dateCtrl.clear(); shiftCtrl.text = 'A'; await load();
     } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('실패: $e'))); }
   }
 
@@ -48,8 +49,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           const SizedBox(height: 4),
           TextField(controller: dateCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'YYYY-MM-DD')),
           const SizedBox(height: 4),
-          TextField(controller: userCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '대상 userId(UUID)')),
-          const SizedBox(height: 4),
+          // UUID 입력 제거: 로그인 사용자로 자동 처리
           TextField(controller: shiftCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '근무조 (A/B/C)')),
           const SizedBox(height: 4),
           ElevatedButton(onPressed: add, child: const Text('추가')),
