@@ -1,8 +1,7 @@
 ﻿import { View, Text, TextInput, Button, FlatList, Alert, Platform, Modal } from 'react-native';
 import { Loading, Empty } from '../components/State';
 import React, { useEffect, useState } from 'react';
-// @ts-ignore: 'react-native-signature-canvas' has no bundled TypeScript declarations
-import Signature from 'react-native-signature-canvas';
+//import Signature from 'react-native-signature-canvas';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 
@@ -191,12 +190,12 @@ export default function LeaveScreen() {
       <Button title="신청" onPress={confirmSubmit} />
       <Modal visible={signVisible} animationType="slide">
         <View style={{ flex: 1 }}>
-          <Signature
+          {/* <Signature
             onOK={handleSignature}
             onEmpty={() => Alert.alert('서명이 필요합니다')}
             descriptionText="서명"
             webStyle={`.m-signature-pad--footer {display: none; margin:0;}`}
-          />
+          /> */}
           <Button title="취소" onPress={() => setSignVisible(false)} />
         </View>
       </Modal>
