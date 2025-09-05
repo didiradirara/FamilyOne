@@ -1,6 +1,7 @@
 ﻿import { View, Text, TextInput, Button, FlatList, Alert, Platform, Modal } from 'react-native';
 import { Loading, Empty } from '../components/State';
 import React, { useEffect, useState } from 'react';
+// @ts-ignore: 'react-native-signature-canvas' has no bundled TypeScript declarations
 import Signature from 'react-native-signature-canvas';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
