@@ -83,7 +83,20 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   signature TEXT,
   state TEXT NOT NULL CHECK (state IN ('pending','approved','rejected')),
   reviewerId TEXT,
-  reviewedAt TEXT
+  reviewedAt TEXT,
+  cancelState TEXT NOT NULL DEFAULT 'none' CHECK (cancelState IN ('none','requested','approved','rejected')),
+  cancelReason TEXT,
+  cancelRequestedAt TEXT,
+  cancelReviewerId TEXT,
+  cancelReviewedAt TEXT
+);
+
+-- Annual leave allocations per user per year
+CREATE TABLE IF NOT EXISTS leave_allocations (
+  userId TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  totalDays INTEGER NOT NULL,
+  PRIMARY KEY (userId, year)
 );
 
 CREATE TABLE IF NOT EXISTS productions (
@@ -155,8 +168,8 @@ CREATE TABLE IF NOT EXISTS shifts (
             sqlite.exec("ALTER TABLE announcements ADD COLUMN site TEXT");
         if (!names.includes('team'))
             sqlite.exec("ALTER TABLE announcements ADD COLUMN team TEXT");
-    if (!names.includes('teamDetail'))
-        sqlite.exec("ALTER TABLE announcements ADD COLUMN teamDetail TEXT");
+        if (!names.includes('teamDetail'))
+            sqlite.exec("ALTER TABLE announcements ADD COLUMN teamDetail TEXT");
     }
     catch { }
     // Migration for leave_requests: add signature column
@@ -164,6 +177,16 @@ CREATE TABLE IF NOT EXISTS shifts (
         const cols = sqlite.prepare('PRAGMA table_info(leave_requests)').all();
         if (!cols.some(c => c.name === 'signature'))
             sqlite.exec("ALTER TABLE leave_requests ADD COLUMN signature TEXT");
+        if (!cols.some(c => c.name === 'cancelState'))
+            sqlite.exec("ALTER TABLE leave_requests ADD COLUMN cancelState TEXT NOT NULL DEFAULT 'none'");
+        if (!cols.some(c => c.name === 'cancelReason'))
+            sqlite.exec("ALTER TABLE leave_requests ADD COLUMN cancelReason TEXT");
+        if (!cols.some(c => c.name === 'cancelRequestedAt'))
+            sqlite.exec("ALTER TABLE leave_requests ADD COLUMN cancelRequestedAt TEXT");
+        if (!cols.some(c => c.name === 'cancelReviewerId'))
+            sqlite.exec("ALTER TABLE leave_requests ADD COLUMN cancelReviewerId TEXT");
+        if (!cols.some(c => c.name === 'cancelReviewedAt'))
+            sqlite.exec("ALTER TABLE leave_requests ADD COLUMN cancelReviewedAt TEXT");
     }
     catch { }
     // Org tables

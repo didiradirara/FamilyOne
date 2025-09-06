@@ -338,7 +338,40 @@ apiRouter.post('/leave-requests', (req, res) => {
 apiRouter.get('/leave-requests', (req, res) => {
     const userId = req.query.userId;
     const list = repo.listLeaveRequests();
-    res.json(userId ? list.filter((lr) => lr.userId === userId) : list);
+    const filtered = userId ? list.filter((lr) => lr.userId === userId) : list;
+    const withNames = filtered.map((lr) => {
+        const u = repo.findUserById(lr.userId);
+        return { ...lr, userName: u?.name };
+    });
+    res.json(withNames);
+});
+apiRouter.delete('/leave-requests/:id', (req, res) => {
+    const id = req.params.id;
+    const row = repo.getLeaveById(id);
+    if (!row)
+        return res.sendStatus(404);
+    const userId = req.auth?.sub;
+    if (!userId)
+        return res.status(401).json({ error: 'Unauthorized' });
+    if (row.userId !== userId)
+        return res.status(403).json({ error: 'Forbidden' });
+    if (row.state === 'approved')
+        return res.status(409).json({ error: 'Approved leave cannot be directly deleted' });
+    repo.deleteLeave(id);
+    res.sendStatus(204);
+});
+apiRouter.post('/leave-requests/:id/cancel-request', (req, res) => {
+    const id = req.params.id;
+    const userId = req.auth?.sub;
+    if (!userId)
+        return res.status(401).json({ error: 'Unauthorized' });
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+    const updated = repo.requestLeaveCancel(id, userId, reason);
+    if (updated === undefined)
+        return res.sendStatus(404);
+    if (updated === null)
+        return res.status(409).json({ error: 'Not allowed' });
+    res.json(updated);
 });
 apiRouter.patch('/leave-requests/:id/approve', requireRole('manager', 'admin'), (req, res) => {
     const schema = z.object({ reviewerId: z.string().uuid() });
@@ -386,8 +419,45 @@ apiRouter.delete('/schedule/:id', requireRole('manager', 'admin'), (req, res) =>
     repo.deleteShift(req.params.id);
     res.sendStatus(204);
 });
+// Leave summary: total, used, remaining
+apiRouter.get('/leave/summary', (req, res) => {
+    const yearParam = req.query.year;
+    let year = new Date().getFullYear();
+    if (yearParam && /^\d{4}$/.test(yearParam))
+        year = Number(yearParam);
+    const userId = req.query.userId || req.auth?.sub;
+    if (!userId)
+        return res.status(400).json({ error: 'Missing userId' });
+    const alloc = repo.getLeaveAllocation(userId, year);
+    const totalDays = alloc?.totalDays ?? 0;
+    const usedDays = repo.computeApprovedLeaveDays(userId, year) ?? 0;
+    const remainingDays = Math.max(0, totalDays - usedDays);
+    res.json({ year, userId, totalDays, usedDays, remainingDays });
+});
+// Leave allocations (admin/manager): upsert and list
+apiRouter.post('/leave/allocations', requireRole('manager', 'admin'), (req, res) => {
+    const schema = z.object({ userId: z.string().uuid(), year: z.number().int().min(2000).max(3000), totalDays: z.number().int().min(0).max(365) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success)
+        return res.status(400).json({ error: 'Invalid payload' });
+    const row = repo.upsertLeaveAllocation(parsed.data.userId, parsed.data.year, parsed.data.totalDays);
+    res.status(201).json(row);
+});
+apiRouter.get('/leave/allocations', requireRole('manager', 'admin'), (req, res) => {
+    const year = typeof req.query.year === 'string' && /^\d{4}$/.test(req.query.year) ? Number(req.query.year) : undefined;
+    const list = repo.listLeaveAllocations(year);
+    res.json(list);
+});
 // Uploads (base64 JSON)
 apiRouter.post('/uploads/base64', (req, res) => {
+    function uniqueName(base) {
+        // ensure unique filename by appending timestamp + random token before extension
+        const dot = base.lastIndexOf('.');
+        const name = dot > 0 ? base.slice(0, dot) : base;
+        const ext = dot > 0 ? base.slice(dot) : '';
+        const token = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        return `${name}_${token}${ext}`;
+    }
     const schema = z.object({ filename: z.string().optional(), data: z.string() });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success)
@@ -396,22 +466,30 @@ apiRouter.post('/uploads/base64', (req, res) => {
     const m = /^data:(.*?);base64,(.*)$/.exec(data);
     const b64 = m ? m[2] : data;
     const ext = m ? (m[1]?.split('/')[1] || 'bin') : 'bin';
-    const safeName = (filename && filename.replace(/[^a-zA-Z0-9_.-]/g, '')) || `upload_${Date.now()}.${ext}`;
-    const filePath = path.join(uploadsDir, safeName);
+    const provided = (filename && filename.replace(/[^a-zA-Z0-9_.-]/g, '')) || `upload.${ext}`;
+    const finalName = uniqueName(provided);
+    const filePath = path.join(uploadsDir, finalName);
     try {
         fs.writeFileSync(filePath, Buffer.from(b64, 'base64'));
-        const url = `/uploads/${safeName}`;
-        auditLog(`UPLOAD OK ${safeName}`);
+        const url = `/uploads/${finalName}`;
+        auditLog(`UPLOAD OK ${finalName}`);
         res.status(201).json({ url });
     }
     catch (e) {
-        auditLog(`UPLOAD FAIL ${safeName || 'unknown'} ${e?.message || ''}`);
+        auditLog(`UPLOAD FAIL ${finalName || 'unknown'} ${e?.message || ''}`);
         res.status(500).json({ error: 'Failed to save file' });
     }
 });
 // Uploads (streaming, application/octet-stream)
 // Usage: POST /api/uploads/stream?filename=foo.jpg with raw body, or send header x-filename
 apiRouter.post('/uploads/stream', (req, res) => {
+    function uniqueName(base) {
+        const dot = base.lastIndexOf('.');
+        const name = dot > 0 ? base.slice(0, dot) : base;
+        const ext = dot > 0 ? base.slice(dot) : '';
+        const token = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        return `${name}_${token}${ext}`;
+    }
     // Only allow non-JSON raw bodies here. express.json doesn't consume octet-stream
     const headerName = req.headers['x-filename'] || '';
     const qName = typeof req.query.filename === 'string' ? req.query.filename : '';
@@ -427,8 +505,9 @@ apiRouter.post('/uploads/stream', (req, res) => {
         ext = 'webp';
     else if (ct === 'image/gif')
         ext = 'gif';
-    const baseName = nameSrc || `upload_${Date.now()}.${ext}`;
-    const filePath = path.join(uploadsDir, baseName);
+    const baseName = nameSrc || `upload.${ext}`;
+    const finalName = uniqueName(baseName);
+    const filePath = path.join(uploadsDir, finalName);
     // Enforce size limit
     const maxBytes = Number(process.env.UPLOAD_STREAM_MAX_BYTES || 25 * 1024 * 1024);
     const contentLength = Number(req.headers['content-length'] || 0);
@@ -453,12 +532,12 @@ apiRouter.post('/uploads/stream', (req, res) => {
         });
         req.pipe(ws);
         ws.on('finish', () => {
-            const url = `/uploads/${baseName}`;
-            auditLog(`STREAM OK ${baseName} ${written}b`);
+            const url = `/uploads/${finalName}`;
+            auditLog(`STREAM OK ${finalName} ${written}b`);
             res.status(201).json({ url });
         });
         ws.on('error', (e) => {
-            auditLog(`STREAM FAIL ${baseName} ${e?.message || ''}`);
+            auditLog(`STREAM FAIL ${finalName} ${e?.message || ''}`);
             try {
                 fs.unlinkSync(filePath);
             }
@@ -467,7 +546,7 @@ apiRouter.post('/uploads/stream', (req, res) => {
         });
     }
     catch (e) {
-        auditLog(`STREAM EXC ${baseName} ${e?.message || ''}`);
+        auditLog(`STREAM EXC ${finalName} ${e?.message || ''}`);
         return res.status(500).json({ error: 'Failed to init stream' });
     }
 });

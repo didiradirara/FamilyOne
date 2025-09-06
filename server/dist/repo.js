@@ -1,5 +1,22 @@
 import { sqlite } from './db/sqlite.js';
 import { v4 as uuid } from 'uuid';
+function buildFilter(filter) {
+    const where = [];
+    const params = [];
+    if (filter?.site) {
+        where.push('site = ?');
+        params.push(filter.site);
+    }
+    if (filter?.team) {
+        where.push('team = ?');
+        params.push(filter.team);
+    }
+    if (filter?.teamDetail) {
+        where.push('teamDetail = ?');
+        params.push(filter.teamDetail);
+    }
+    return { where, params };
+}
 export const repo = {
     // Users
     createUser(name, role, site, team, teamDetail) {
@@ -23,20 +40,7 @@ export const repo = {
         return { id, type: data.type, message: data.message, createdAt: now, createdBy: data.createdBy, status: 'new', images: data.images ?? [], site: data.site, team: data.team, teamDetail: data.teamDetail };
     },
     listReports(filter) {
-        const where = [];
-        const params = [];
-        if (filter?.site) {
-            where.push('site = ?');
-            params.push(filter.site);
-        }
-        if (filter?.team) {
-            where.push('team = ?');
-            params.push(filter.team);
-        }
-        if (filter?.teamDetail) {
-            where.push('teamDetail = ?');
-            params.push(filter.teamDetail);
-        }
+        const { where, params } = buildFilter(filter);
         const sql = `SELECT * FROM reports ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY createdAt DESC`;
         const rows = sqlite.prepare(sql).all(...params);
         return rows.map(r => ({ ...r, images: r.imagesJson ? JSON.parse(r.imagesJson) : [] }));
@@ -131,20 +135,7 @@ export const repo = {
         return { id, kind: data.kind, details: data.details, createdAt: now, createdBy: data.createdBy, state: 'pending', site: data.site, team: data.team, teamDetail: data.teamDetail };
     },
     listRequests(filter) {
-        const where = [];
-        const params = [];
-        if (filter?.site) {
-            where.push('site = ?');
-            params.push(filter.site);
-        }
-        if (filter?.team) {
-            where.push('team = ?');
-            params.push(filter.team);
-        }
-        if (filter?.teamDetail) {
-            where.push('teamDetail = ?');
-            params.push(filter.teamDetail);
-        }
+        const { where, params } = buildFilter(filter);
         const sql = `SELECT * FROM requests ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY createdAt DESC`;
         return sqlite.prepare(sql).all(...params);
     },
@@ -165,20 +156,7 @@ export const repo = {
         return sqlite.prepare('SELECT * FROM requests WHERE id=?').get(id);
     },
     listAnnouncements(filter) {
-        const where = [];
-        const params = [];
-        if (filter?.site) {
-            where.push('site = ?');
-            params.push(filter.site);
-        }
-        if (filter?.team) {
-            where.push('team = ?');
-            params.push(filter.team);
-        }
-        if (filter?.teamDetail) {
-            where.push('teamDetail = ?');
-            params.push(filter.teamDetail);
-        }
+        const { where, params } = buildFilter(filter);
         const sql = `SELECT * FROM announcements ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY createdAt DESC`;
         const rows = sqlite.prepare(sql).all(...params);
         return rows.map(r => ({ ...r, readBy: JSON.parse(r.readBy) }));
@@ -226,6 +204,58 @@ export const repo = {
         const ts = new Date().toISOString();
         sqlite.prepare('UPDATE leave_requests SET state=?, reviewerId=?, reviewedAt=? WHERE id=?').run(state, reviewerId, ts, id);
         return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id);
+    },
+    getLeaveById(id) { return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id); },
+    deleteLeave(id) { sqlite.prepare('DELETE FROM leave_requests WHERE id=?').run(id); return true; },
+    requestLeaveCancel(id, userId, reason) {
+        const row = sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id);
+        if (!row)
+            return undefined;
+        if (row.userId !== userId)
+            return null; // forbidden
+        if (row.state !== 'approved')
+            return null; // only approved can request cancel
+        const ts = new Date().toISOString();
+        sqlite.prepare('UPDATE leave_requests SET cancelState=?, cancelReason=?, cancelRequestedAt=? WHERE id=?')
+            .run('requested', reason ?? null, ts, id);
+        return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id);
+    },
+    // Leave allocations (annual leave totals)
+    upsertLeaveAllocation(userId, year, totalDays) {
+        sqlite.prepare('INSERT INTO leave_allocations (userId,year,totalDays) VALUES (?,?,?) ON CONFLICT(userId,year) DO UPDATE SET totalDays=excluded.totalDays')
+            .run(userId, year, totalDays);
+        return sqlite.prepare('SELECT * FROM leave_allocations WHERE userId=? AND year=?').get(userId, year);
+    },
+    getLeaveAllocation(userId, year) {
+        return sqlite.prepare('SELECT * FROM leave_allocations WHERE userId=? AND year=?').get(userId, year);
+    },
+    listLeaveAllocations(year) {
+        if (typeof year === 'number')
+            return sqlite.prepare('SELECT * FROM leave_allocations WHERE year=?').all(year);
+        return sqlite.prepare('SELECT * FROM leave_allocations').all();
+    },
+    computeApprovedLeaveDays(userId, year) {
+        const rows = sqlite.prepare('SELECT * FROM leave_requests WHERE userId=? AND state=?').all(userId, 'approved');
+        const yStart = new Date(Date.UTC(year, 0, 1));
+        const yEnd = new Date(Date.UTC(year, 11, 31));
+        let days = 0;
+        for (const r of rows) {
+            try {
+                const s = new Date(r.startDate);
+                const e = new Date(r.endDate);
+                if (isNaN(s.getTime()) || isNaN(e.getTime()))
+                    continue;
+                // Overlap within the year (inclusive)
+                const a = new Date(Math.max(s.getTime(), yStart.getTime()));
+                const b = new Date(Math.min(e.getTime(), yEnd.getTime()));
+                if (a.getTime() > b.getTime())
+                    continue;
+                const diff = Math.floor((b.getTime() - a.getTime()) / (24 * 60 * 60 * 1000)) + 1; // inclusive days
+                days += diff > 0 ? diff : 0;
+            }
+            catch { }
+        }
+        return days;
     },
     // Schedule (shifts)
     createShift(data) {
