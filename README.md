@@ -9,7 +9,6 @@
 ## Server (API)
 
  - 개발 실행: cd server && npm run dev (기본 포트 80)
- - 헬스체크: GET http://34.47.82.64/health (외부) / http://10.178.0.2/health (내부)
 - API 베이스: /api
 - 현재 인메모리 저장소(빠른 프로토타입). 추후 DB 교체 권장.
 
@@ -117,3 +116,4 @@ eadBy는 문자열 배열)
   final socket = IO.io('http://localhost:4000', IO.OptionBuilder().setTransports(['websocket']).build());
   socket.on('report:new', (data) { print(data); });
   ```
+
