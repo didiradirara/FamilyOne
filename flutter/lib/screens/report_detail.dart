@@ -18,6 +18,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   bool loading = true;
   bool editing = false;
   final msgCtrl = TextEditingController();
+  final replyCtrl = TextEditingController();
+  List<Map<String, dynamic>> replies = [];
 
   bool get isOwner => (item?['createdBy'] ?? '') == (ApiSession.userId ?? '');
   bool get canReview => (ApiSession.role == 'manager' || ApiSession.role == 'admin');
@@ -29,6 +31,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       final found = (list as List).cast<Map>().firstWhere((e) => e['id'] == widget.id, orElse: () => {} as Map);
       item = Map<String, dynamic>.from(found);
       msgCtrl.text = (item?['message'] ?? '') as String;
+      await loadReplies();
     } finally { if (mounted) setState(()=>loading=false); }
   }
 
@@ -40,6 +43,26 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       setState(()=>editing=false); await load();
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('메시지 저장 실패')));
+    }
+  }
+
+  Future<void> loadReplies() async {
+    try {
+      final list = await api.get('/api/reports/${widget.id}/replies') as List<dynamic>;
+      replies = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (_) { replies = []; }
+  }
+
+  Future<void> addReply() async {
+    final txt = replyCtrl.text.trim();
+    if (txt.isEmpty) return;
+    try {
+      await api.post('/api/reports/${widget.id}/replies', { 'content': txt });
+      replyCtrl.clear();
+      await loadReplies();
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('답변 등록 실패')));
     }
   }
 
@@ -140,10 +163,26 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           const SizedBox(width: 8),
           ElevatedButton(onPressed: ()=>setStatus('resolved'), child: const Text('해결')),
         ]),
-        if (isOwner || canReview) Padding(
+      if (isOwner || canReview) Padding(
           padding: const EdgeInsets.only(top: 8.0),
           child: TextButton(onPressed: deleteReport, style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('보고 삭제')),
         ),
+        const SizedBox(height: 16),
+        const Text('답변', style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        if (replies.isNotEmpty) ...[
+          for (final r in replies)
+            ListTile(
+              title: Text(r['content'] ?? ''),
+              subtitle: Text('${(r['user']?['name'] ?? '')} / ${(r['user']?['role'] ?? '')} / ${(r['user']?['team'] ?? '')}${(r['user']?['teamDetail']??'')!='' ? ' / '+(r['user']?['teamDetail'] ?? '') : ''}'),
+              trailing: Text((r['createdAt'] ?? '') as String),
+            ),
+        ],
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children:[
+          Expanded(child: TextField(controller: replyCtrl, maxLines: null, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '답변 입력'))),
+          const SizedBox(width: 8),
+          FilledButton(onPressed: addReply, child: const Text('등록')),
+        ]),
       ]),
     );
   }

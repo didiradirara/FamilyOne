@@ -199,11 +199,25 @@ apiRouter.patch('/requests/:id/reject', requireRole('manager','admin'), (req, re
 });
 
 // Announcements
-apiRouter.post('/announcements', requireRole('manager','admin'), (req, res) => {
-  const schema = z.object({ title: z.string().min(1), body: z.string().min(1), createdBy: z.string().uuid() });
+apiRouter.post('/announcements', requireRole('admin'), (req, res) => {
+  const schema = z.object({
+    title: z.string().min(1),
+    body: z.string().min(1),
+    createdBy: z.string().uuid(),
+    site: z.string().optional(),
+    team: z.string().optional(),
+    teamDetail: z.string().optional(),
+    mandatory: z.boolean().optional(),
+    attachments: z.array(z.string()).optional(),
+  });
   const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
   const creator = repo.findUserById(parsed.data.createdBy);
-  const ann = repo.createAnnouncement({ ...parsed.data, site: creator?.site, team: creator?.team, teamDetail: creator?.teamDetail } as any); notify('announcement:new', ann); res.status(201).json(ann);
+  const ann = repo.createAnnouncement({
+    ...parsed.data,
+    site: parsed.data.site ?? creator?.site,
+    team: parsed.data.team ?? creator?.team,
+    teamDetail: parsed.data.teamDetail ?? creator?.teamDetail,
+  } as any); notify('announcement:new', ann); res.status(201).json(ann);
 });
 apiRouter.get('/announcements', (req, res) => {
   const filter = {
@@ -217,6 +231,13 @@ apiRouter.post('/announcements/:id/read', (req, res) => {
   const schema = z.object({ userId: z.string().uuid() });
   const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
   const ann = repo.markAnnouncementRead(req.params.id, parsed.data.userId); if (!ann) return res.sendStatus(404); notify('announcement:read', ann); res.json(ann);
+});
+
+// Announcements: unread users list (manager/admin)
+apiRouter.get('/announcements/:id/unread', requireRole('manager','admin'), (req, res) => {
+  const list = repo.listUnreadUsersForAnnouncement(req.params.id) as any;
+  if (list === undefined) return res.sendStatus(404);
+  res.json(list);
 });
 
 // Checklists
@@ -293,9 +314,9 @@ apiRouter.patch('/leave-requests/:id/approve', requireRole('manager','admin'), (
   const it = repo.setLeaveState(req.params.id, 'approved', parsed.data.reviewerId); if (!it) return res.sendStatus(404); notify('leave:approved', it); res.json(it);
 });
 apiRouter.patch('/leave-requests/:id/reject', requireRole('manager','admin'), (req, res) => {
-  const schema = z.object({ reviewerId: z.string().uuid() });
+  const schema = z.object({ reviewerId: z.string().uuid(), reason: z.string().optional() });
   const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
-  const it = repo.setLeaveState(req.params.id, 'rejected', parsed.data.reviewerId); if (!it) return res.sendStatus(404); notify('leave:rejected', it); res.json(it);
+  const it = repo.setLeaveRejected(req.params.id, parsed.data.reviewerId, parsed.data.reason); if (!it) return res.sendStatus(404); notify('leave:rejected', it); res.json(it);
 });
 
 // Schedule (CRUD)
@@ -433,6 +454,67 @@ apiRouter.post('/uploads/stream', (req, res) => {
     auditLog(`STREAM EXC ${finalName} ${(e as any)?.message || ''}`);
     return res.status(500).json({ error: 'Failed to init stream' });
   }
+});
+
+// Users (manager/admin)
+apiRouter.get('/users', requireRole('manager','admin'), (req, res) => {
+  const filter = {
+    site: typeof req.query.site === 'string' ? req.query.site : undefined,
+    team: typeof req.query.team === 'string' ? req.query.team : undefined,
+    teamDetail: typeof req.query.teamDetail === 'string' ? req.query.teamDetail : undefined,
+  };
+  res.json(repo.listUsers(filter));
+});
+
+// Report replies
+apiRouter.get('/reports/:id/replies', (req, res) => {
+  res.json(repo.listReportReplies(req.params.id));
+});
+apiRouter.post('/reports/:id/replies', (req, res) => {
+  const userId = req.auth?.sub; if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const schema = z.object({ content: z.string().min(1) });
+  const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+  const existing = repo.getReportById(req.params.id); if (!existing) return res.sendStatus(404);
+  const reply = repo.createReportReply({ reportId: req.params.id, userId, content: parsed.data.content });
+  res.status(201).json(reply);
+});
+
+// Education
+apiRouter.get('/education', (req, res) => {
+  const y = typeof req.query.year === 'string' ? Number(req.query.year) : undefined;
+  res.json(repo.listCourses(Number.isFinite(y as any) ? (y as number) : undefined));
+});
+apiRouter.post('/education', requireRole('admin'), (req, res) => {
+  const schema = z.object({ year: z.number().int(), title: z.string().min(1), content: z.string().min(1), attachments: z.array(z.string()).optional() });
+  const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+  const c = repo.createCourse(parsed.data as any); res.status(201).json(c);
+});
+apiRouter.get('/education/:id', (req, res) => {
+  const c = repo.getCourse(req.params.id); if (!c) return res.sendStatus(404);
+  const me = req.auth?.sub; if (me) {
+    const done = repo.listCompletions(req.params.id, me);
+    (c as any).completedByMe = done && done.length > 0 ? true : false;
+    (c as any).myCompletion = done && done.length > 0 ? done[0] : null;
+  }
+  res.json(c);
+});
+apiRouter.post('/education/:id/complete', (req, res) => {
+  const me = req.auth?.sub; if (!me) return res.status(401).json({ error: 'Unauthorized' });
+  const schema = z.object({ signature: z.string().optional() });
+  const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+  const c = repo.getCourse(req.params.id); if (!c) return res.sendStatus(404);
+  const r = repo.completeCourse(req.params.id, me, parsed.data.signature);
+  res.status(201).json(r);
+});
+apiRouter.patch('/education/:id', requireRole('admin'), (req, res) => {
+  const schema = z.object({ year: z.number().int().optional(), title: z.string().min(1).optional(), content: z.string().min(1).optional(), attachments: z.array(z.string()).optional() })
+    .refine(d => Object.keys(d).length>0, { message: 'empty' });
+  const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+  const c = repo.updateCourse(req.params.id, parsed.data as any); if (!c) return res.sendStatus(404);
+  res.json(c);
+});
+apiRouter.delete('/education/:id', requireRole('admin'), (req, res) => {
+  repo.deleteCourse(req.params.id); res.sendStatus(204);
 });
 
 // Org admin (admin only)

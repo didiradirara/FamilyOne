@@ -24,6 +24,11 @@ export const repo = {
   findUserByName(name: string) {
     return sqlite.prepare('SELECT id,name,role,site,team,teamDetail FROM users WHERE name = ?').get(name) as any;
   },
+  listUsers(filter?: { site?: string; team?: string; teamDetail?: string }) {
+    const { where, params } = buildFilter(filter);
+    const sql = `SELECT id,name,role,site,team,teamDetail FROM users ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY name`;
+    return sqlite.prepare(sql).all(...params) as any[];
+  },
 
   // Reports
   createReport(data: { type: string; message: string; createdBy: string; images?: string[]; site?: string; team?: string; teamDetail?: string | null }): Report {
@@ -133,11 +138,11 @@ export const repo = {
   },
 
   // Announcements
-  createAnnouncement(data: { title: string; body: string; createdBy: string; site?: string; team?: string; teamDetail?: string | null }): Announcement {
+  createAnnouncement(data: { title: string; body: string; createdBy: string; site?: string; team?: string; teamDetail?: string | null; mandatory?: boolean; attachments?: string[] }): Announcement {
     const id = uuid(); const now = new Date().toISOString();
-    sqlite.prepare('INSERT INTO announcements (id,title,body,createdAt,createdBy,readBy,site,team,teamDetail) VALUES (?,?,?,?,?,?,?, ?, ?)')
-      .run(id, data.title, data.body, now, data.createdBy, JSON.stringify([]), data.site ?? null, data.team ?? null, data.teamDetail ?? null);
-    return { id, title: data.title, body: data.body, createdAt: now, createdBy: data.createdBy, readBy: [], site: data.site, team: data.team, teamDetail: data.teamDetail } as any;
+    sqlite.prepare('INSERT INTO announcements (id,title,body,createdAt,createdBy,readBy,site,team,teamDetail,mandatory,attachmentsJson) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+      .run(id, data.title, data.body, now, data.createdBy, JSON.stringify([]), data.site ?? null, data.team ?? null, data.teamDetail ?? null, (data.mandatory ? 1 : 0), JSON.stringify(data.attachments ?? []));
+    return { id, title: data.title, body: data.body, createdAt: now, createdBy: data.createdBy, readBy: [], site: data.site, team: data.team, teamDetail: data.teamDetail, mandatory: !!data.mandatory, attachments: data.attachments ?? [] } as any;
   },
   getRequestById(id: string) {
     return sqlite.prepare('SELECT * FROM requests WHERE id=?').get(id) as any;
@@ -146,7 +151,22 @@ export const repo = {
     const { where, params } = buildFilter(filter);
     const sql = `SELECT * FROM announcements ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY createdAt DESC`;
     const rows = sqlite.prepare(sql).all(...params) as any[];
-    return rows.map(r => ({ ...r, readBy: JSON.parse(r.readBy) })) as any;
+    return rows.map(r => ({ ...r, readBy: JSON.parse(r.readBy), mandatory: (r.mandatory ?? 0) ? true : false, attachments: r.attachmentsJson ? JSON.parse(r.attachmentsJson) : [] })) as any;
+  },
+  getAnnouncementById(id: string) {
+    const r = sqlite.prepare('SELECT * FROM announcements WHERE id=?').get(id) as any;
+    if (!r) return undefined as any;
+    return { ...r, readBy: JSON.parse(r.readBy), mandatory: (r.mandatory ?? 0) ? true : false, attachments: r.attachmentsJson ? JSON.parse(r.attachmentsJson) : [] } as any;
+  },
+  listUnreadUsersForAnnouncement(id: string) {
+    const ann = sqlite.prepare('SELECT * FROM announcements WHERE id=?').get(id) as any;
+    if (!ann) return undefined as any;
+    const readBy: string[] = JSON.parse(ann.readBy || '[]');
+    const { where, params } = buildFilter({ site: ann.site ?? undefined, team: ann.team ?? undefined, teamDetail: ann.teamDetail ?? undefined });
+    const sql = `SELECT id,name,role,site,team,teamDetail FROM users ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`;
+    const users = sqlite.prepare(sql).all(...params) as any[];
+    const set = new Set(readBy);
+    return users.filter(u => !set.has(u.id));
   },
   markAnnouncementRead(id: string, userId: string) {
     const row = sqlite.prepare('SELECT * FROM announcements WHERE id=?').get(id) as any;
@@ -154,7 +174,23 @@ export const repo = {
     const readBy: string[] = JSON.parse(row.readBy);
     if (!readBy.includes(userId)) { readBy.push(userId); sqlite.prepare('UPDATE announcements SET readBy=? WHERE id=?').run(JSON.stringify(readBy), id); }
     const updated = sqlite.prepare('SELECT * FROM announcements WHERE id=?').get(id) as any;
-    return { ...updated, readBy: JSON.parse(updated.readBy) } as any;
+    return { ...updated, readBy: JSON.parse(updated.readBy), mandatory: (updated.mandatory ?? 0) ? true : false, attachments: updated.attachmentsJson ? JSON.parse(updated.attachmentsJson) : [] } as any;
+  },
+
+  // Report replies
+  createReportReply(data: { reportId: string; userId: string; content: string }) {
+    const id = uuid();
+    const now = new Date().toISOString();
+    sqlite.prepare('INSERT INTO report_replies (id,reportId,userId,content,createdAt) VALUES (?,?,?,?,?)')
+      .run(id, data.reportId, data.userId, data.content, now);
+    return { id, ...data, createdAt: now } as any;
+  },
+  listReportReplies(reportId: string) {
+    const rows = sqlite.prepare('SELECT * FROM report_replies WHERE reportId=? ORDER BY createdAt ASC').all(reportId) as any[];
+    return rows.map(r => {
+      const u = sqlite.prepare('SELECT id,name,role,site,team,teamDetail FROM users WHERE id=?').get(r.userId) as any;
+      return { ...r, user: u };
+    });
   },
 
   // Checklists
@@ -187,6 +223,12 @@ export const repo = {
   setLeaveState(id: string, state: 'approved'|'rejected', reviewerId: string) {
     const ts = new Date().toISOString();
     sqlite.prepare('UPDATE leave_requests SET state=?, reviewerId=?, reviewedAt=? WHERE id=?').run(state, reviewerId, ts, id);
+    return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id) as any;
+  },
+  setLeaveRejected(id: string, reviewerId: string, reason?: string) {
+    const ts = new Date().toISOString();
+    sqlite.prepare('UPDATE leave_requests SET state=?, reviewerId=?, reviewedAt=?, rejectReason=? WHERE id=?')
+      .run('rejected', reviewerId, ts, reason ?? null, id);
     return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id) as any;
   },
   getLeaveById(id: string) { return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id) as any; },
@@ -261,5 +303,59 @@ export const repo = {
   },
   listProductionsByDate(date: string) {
     return sqlite.prepare('SELECT * FROM productions WHERE date = ?').all(date) as any[];
+  },
+  
+  // Education
+  createCourse(data: { year: number; title: string; content: string; attachments?: string[] }) {
+    const id = uuid();
+    sqlite.prepare('INSERT INTO education_courses (id,year,title,content,attachmentsJson) VALUES (?,?,?,?,?)')
+      .run(id, data.year, data.title, data.content, JSON.stringify(data.attachments ?? []));
+    return { id, ...data } as any;
+  },
+  listCourses(year?: number) {
+    if (typeof year === 'number') {
+      const rows = sqlite.prepare('SELECT * FROM education_courses WHERE year=? ORDER BY title').all(year) as any[];
+      return rows.map(r => ({ ...r, attachments: r.attachmentsJson ? JSON.parse(r.attachmentsJson) : [] })) as any[];
+    }
+    const rows = sqlite.prepare('SELECT * FROM education_courses ORDER BY year DESC, title').all() as any[];
+    return rows.map(r => ({ ...r, attachments: r.attachmentsJson ? JSON.parse(r.attachmentsJson) : [] })) as any[];
+  },
+  getCourse(id: string) {
+    const row = sqlite.prepare('SELECT * FROM education_courses WHERE id=?').get(id) as any;
+    if (!row) return undefined as any;
+    return { ...row, attachments: row.attachmentsJson ? JSON.parse(row.attachmentsJson) : [] } as any;
+  },
+  updateCourse(id: string, patch: Partial<{ year: number; title: string; content: string; attachments: string[] }>) {
+    const cur = sqlite.prepare('SELECT * FROM education_courses WHERE id=?').get(id) as any;
+    if (!cur) return undefined as any;
+    const next = {
+      year: typeof patch.year === 'number' ? patch.year : cur.year,
+      title: typeof patch.title === 'string' ? patch.title : cur.title,
+      content: typeof patch.content === 'string' ? patch.content : cur.content,
+      attachmentsJson: JSON.stringify((patch.attachments ?? (cur.attachmentsJson ? JSON.parse(cur.attachmentsJson) : [])))
+    };
+    sqlite.prepare('UPDATE education_courses SET year=?, title=?, content=?, attachmentsJson=? WHERE id=?')
+      .run(next.year, next.title, next.content, next.attachmentsJson, id);
+    const row = sqlite.prepare('SELECT * FROM education_courses WHERE id=?').get(id) as any;
+    return { ...row, attachments: row.attachmentsJson ? JSON.parse(row.attachmentsJson) : [] } as any;
+  },
+  deleteCourse(id: string) {
+    sqlite.prepare('DELETE FROM education_courses WHERE id=?').run(id);
+    return true;
+  },
+  listCompletions(courseId: string, userId?: string) {
+    const rows = userId ?
+      sqlite.prepare('SELECT * FROM education_completions WHERE courseId=? AND userId=?').all(courseId, userId) as any[] :
+      sqlite.prepare('SELECT * FROM education_completions WHERE courseId=?').all(courseId) as any[];
+    return rows;
+  },
+  completeCourse(courseId: string, userId: string, signature?: string) {
+    const existing = sqlite.prepare('SELECT * FROM education_completions WHERE courseId=? AND userId=?').get(courseId, userId) as any;
+    if (existing) return existing;
+    const id = uuid();
+    const ts = new Date().toISOString();
+    sqlite.prepare('INSERT INTO education_completions (id,courseId,userId,signature,completedAt) VALUES (?,?,?,?,?)')
+      .run(id, courseId, userId, signature ?? null, ts);
+    return sqlite.prepare('SELECT * FROM education_completions WHERE id=?').get(id) as any;
   },
 };

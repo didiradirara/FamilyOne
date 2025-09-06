@@ -38,7 +38,16 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
       final path = type == 'request'
           ? '/api/requests/$id/${approve ? 'approve' : 'reject'}'
           : '/api/leave-requests/$id/${approve ? 'approve' : 'reject'}';
-      await api.patch(path, { 'reviewerId': reviewer });
+      Map<String, dynamic> body = { 'reviewerId': reviewer };
+      if (type == 'leave' && !approve) {
+        final reason = await showDialog<String>(
+          context: context,
+          builder: (_) { final ctrl = TextEditingController(); return AlertDialog(title: const Text('반려 사유'), content: TextField(controller: ctrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '사유를 입력하세요')),
+            actions: [ TextButton(onPressed: ()=>Navigator.pop(context), child: const Text('취소')), FilledButton(onPressed: ()=>Navigator.pop(context, ctrl.text.trim()), child: const Text('확인')) ] ); }
+        );
+        if (reason != null && reason.isNotEmpty) body['reason'] = reason;
+      }
+      await api.patch(path, body);
       await load();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? '승인 완료' : '반려 완료')));
     } catch (e) {

@@ -163,6 +163,8 @@ CREATE TABLE IF NOT EXISTS shifts (
     if (!names.includes('site')) sqlite.exec("ALTER TABLE announcements ADD COLUMN site TEXT");
     if (!names.includes('team')) sqlite.exec("ALTER TABLE announcements ADD COLUMN team TEXT");
     if (!names.includes('teamDetail')) sqlite.exec("ALTER TABLE announcements ADD COLUMN teamDetail TEXT");
+    if (!names.includes('mandatory')) sqlite.exec("ALTER TABLE announcements ADD COLUMN mandatory INTEGER NOT NULL DEFAULT 0");
+    if (!names.includes('attachmentsJson')) sqlite.exec("ALTER TABLE announcements ADD COLUMN attachmentsJson TEXT");
   } catch {}
 
   // Migration for leave_requests: add signature column
@@ -174,12 +176,38 @@ CREATE TABLE IF NOT EXISTS shifts (
     if (!cols.some(c => c.name === 'cancelRequestedAt')) sqlite.exec("ALTER TABLE leave_requests ADD COLUMN cancelRequestedAt TEXT");
     if (!cols.some(c => c.name === 'cancelReviewerId')) sqlite.exec("ALTER TABLE leave_requests ADD COLUMN cancelReviewerId TEXT");
     if (!cols.some(c => c.name === 'cancelReviewedAt')) sqlite.exec("ALTER TABLE leave_requests ADD COLUMN cancelReviewedAt TEXT");
+    if (!cols.some(c => c.name === 'rejectReason')) sqlite.exec("ALTER TABLE leave_requests ADD COLUMN rejectReason TEXT");
   } catch {}
 
   // Org tables
   sqlite.exec(`CREATE TABLE IF NOT EXISTS sites (site TEXT PRIMARY KEY, name TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS site_teams (id TEXT PRIMARY KEY, site TEXT NOT NULL, team TEXT NOT NULL, detailsJson TEXT);
 `);
+
+  // Replies to reports
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS report_replies (
+    id TEXT PRIMARY KEY,
+    reportId TEXT NOT NULL,
+    userId TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );`);
+
+  // Education courses and completions
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS education_courses (
+    id TEXT PRIMARY KEY,
+    year INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    attachmentsJson TEXT
+  );`);
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS education_completions (
+    id TEXT PRIMARY KEY,
+    courseId TEXT NOT NULL,
+    userId TEXT NOT NULL,
+    signature TEXT,
+    completedAt TEXT NOT NULL
+  );`);
 }
 
 export function seedDb() {

@@ -39,6 +39,8 @@ export interface Announcement {
   createdAt: string;
   createdBy: string;
   readBy: string[]; // userIds
+  mandatory?: boolean;
+  attachments?: string[];
 }
 
 export interface ChecklistItem {
@@ -74,6 +76,7 @@ export interface LeaveRequest {
   state: 'pending' | 'approved' | 'rejected';
   reviewerId?: string;
   reviewedAt?: string;
+  rejectReason?: string;
 }
 
 export interface Shift {
@@ -87,4 +90,20 @@ export interface Production {
   id: string;
   date: string; // YYYY-MM-DD
   name: string;
+}
+
+export interface EducationCourse {
+  id: string;
+  year: number;
+  title: string;
+  content: string;
+  attachments?: string[];
+}
+
+export interface EducationCompletion {
+  id: string;
+  courseId: string;
+  userId: string;
+  signature?: string;
+  completedAt: string;
 }

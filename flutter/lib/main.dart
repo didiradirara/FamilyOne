@@ -1,14 +1,13 @@
 ﻿import 'package:flutter/material.dart';
 import 'screens/home.dart';
 import 'screens/report.dart';
-import 'screens/requests.dart';
 import 'screens/announcements.dart';
 import 'screens/checklist.dart';
-import 'screens/suggestions.dart';
 import 'screens/leave.dart';
 import 'screens/schedule.dart';
 import 'screens/auth.dart';
 import 'screens/approvals.dart';
+import 'screens/education_list.dart';
 import 'api/session.dart';
 import 'api/auth_store.dart';
 import 'realtime/realtime.dart';
@@ -49,9 +48,9 @@ class _FamilyOneAppState extends State<FamilyOneApp> {
   void _rebuildTabs() {
     final isMgr = (ApiSession.role == 'manager' || ApiSession.role == 'admin');
     _pages = [
-      const HomeScreen(), const ReportScreen(), const RequestsScreen(), const AnnouncementsScreen(),
+      const HomeScreen(), const ReportScreen(), const AnnouncementsScreen(),
       if (isMgr) const ApprovalsScreen(),
-      const ChecklistScreen(), const SuggestionsScreen(), const LeaveScreen(), const ScheduleScreen(),
+      const ChecklistScreen(), const EducationListScreen(), const LeaveScreen(), const ScheduleScreen(),
     ];
     _dests = [
       const NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
@@ -86,20 +85,16 @@ class _FamilyOneAppState extends State<FamilyOneApp> {
             final isMgr = (ApiSession.role == 'manager' || ApiSession.role == 'admin');
             final dests = <NavigationDestination>[
               const NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-              const NavigationDestination(icon: Icon(Icons.report), label: 'Report'),
-              NavigationDestination(
-                icon: Stack(children:[const Icon(Icons.assignment), if (RealtimeStore.I.requests>0) Positioned(right:0,top:0, child: _Dot(RealtimeStore.I.requests))]),
-                label: 'Requests',
-              ),
-              NavigationDestination(
-                icon: Stack(children:[const Icon(Icons.campaign), if (RealtimeStore.I.announcements>0) Positioned(right:0,top:0, child: _Dot(RealtimeStore.I.announcements))]),
-                label: 'Announce',
-              ),
-              if (isMgr) const NavigationDestination(icon: Icon(Icons.verified), label: 'Approvals'),
-              const NavigationDestination(icon: Icon(Icons.checklist), label: 'Checklist'),
-              const NavigationDestination(icon: Icon(Icons.lightbulb), label: 'Suggest'),
-              const NavigationDestination(icon: Icon(Icons.beach_access), label: 'Leave'),
-              const NavigationDestination(icon: Icon(Icons.schedule), label: 'Schedule'),
+      const NavigationDestination(icon: Icon(Icons.report), label: 'Report'),
+      NavigationDestination(
+        icon: Stack(children:[const Icon(Icons.campaign), if (RealtimeStore.I.announcements>0) Positioned(right:0,top:0, child: _Dot(RealtimeStore.I.announcements))]),
+        label: 'Announce',
+      ),
+      if (isMgr) const NavigationDestination(icon: Icon(Icons.verified), label: 'Approvals'),
+      const NavigationDestination(icon: Icon(Icons.checklist), label: 'Checklist'),
+      const NavigationDestination(icon: Icon(Icons.school), label: 'Education'),
+      const NavigationDestination(icon: Icon(Icons.beach_access), label: 'Leave'),
+      const NavigationDestination(icon: Icon(Icons.schedule), label: 'Schedule'),
             ];
             return NavigationBar(
               selectedIndex: _index,

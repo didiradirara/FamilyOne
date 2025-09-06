@@ -194,6 +194,12 @@
       "languageVersion": "3.8"
     },
     {
+      "name": "intl",
+      "rootUri": "file:///C:/Users/choi/AppData/Local/Pub/Cache/hosted/pub.dev/intl-0.20.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
       "name": "js",
       "rootUri": "file:///C:/Users/choi/AppData/Local/Pub/Cache/hosted/pub.dev/js-0.6.7",
       "packageUri": "lib/",
@@ -344,6 +350,12 @@
       "languageVersion": "3.3"
     },
     {
+      "name": "simple_gesture_detector",
+      "rootUri": "file:///C:/Users/choi/AppData/Local/Pub/Cache/hosted/pub.dev/simple_gesture_detector-0.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "sky_engine",
       "rootUri": "file:///C:/SDK/flutter/bin/cache/pkg/sky_engine",
       "packageUri": "lib/",
@@ -390,6 +402,12 @@
       "rootUri": "file:///C:/Users/choi/AppData/Local/Pub/Cache/hosted/pub.dev/sync_http-0.3.1",
       "packageUri": "lib/",
       "languageVersion": "2.12"
+    },
+    {
+      "name": "table_calendar",
+      "rootUri": "file:///C:/Users/choi/AppData/Local/Pub/Cache/hosted/pub.dev/table_calendar-3.2.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
     },
     {
       "name": "term_glyph",

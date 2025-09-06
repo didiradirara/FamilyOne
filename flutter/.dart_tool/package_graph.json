@@ -12,7 +12,8 @@
         "http",
         "image_picker",
         "shared_preferences",
-        "socket_io_client"
+        "socket_io_client",
+        "table_calendar"
       ],
       "devDependencies": [
         "flutter_lints",
@@ -635,6 +636,31 @@
       "name": "xdg_directories",
       "version": "1.1.0",
       "dependencies": [
+        "meta",
+        "path"
+      ]
+    },
+    {
+      "name": "table_calendar",
+      "version": "3.2.0",
+      "dependencies": [
+        "flutter",
+        "intl",
+        "simple_gesture_detector"
+      ]
+    },
+    {
+      "name": "simple_gesture_detector",
+      "version": "0.2.1",
+      "dependencies": [
+        "flutter"
+      ]
+    },
+    {
+      "name": "intl",
+      "version": "0.20.2",
+      "dependencies": [
+        "clock",
         "meta",
         "path"
       ]
