@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/client.dart';
 import '../api/session.dart';
 import 'education_admin.dart';
-import 'education_detail.dart';
+import './edu_detail.dart';
 
 class EducationListScreen extends StatefulWidget {
   const EducationListScreen({super.key});
@@ -29,12 +29,13 @@ class _EducationListScreenState extends State<EducationListScreen> {
   @override
   Widget build(BuildContext context) {
     final years = [for (int y = DateTime.now().year; y >= DateTime.now().year - 5; y--) y];
+    final textTheme = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('법정교육', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          Text('법정교육', style: textTheme.titleMedium),
           const SizedBox(height: 8),
           Row(children:[
             const Text('년도:'), const SizedBox(width: 8),
@@ -47,7 +48,15 @@ class _EducationListScreenState extends State<EducationListScreen> {
           Row(children:[
             const Expanded(child: Divider()),
             if (ApiSession.role == 'admin')
-              TextButton.icon(onPressed: (){ Navigator.of(context).push(MaterialPageRoute(builder: (_)=> const EducationAdminScreen())); }, icon: const Icon(Icons.admin_panel_settings), label: const Text('교육 등록/관리'))
+              TextButton.icon(
+                onPressed: (){
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_)=> const EducationAdminScreen()),
+                  );
+                },
+                icon: const Icon(Icons.admin_panel_settings),
+                label: const Text('교육 등록/관리'),
+              )
           ]),
           Expanded(child: ListView.builder(
             itemCount: items.length,
@@ -56,7 +65,13 @@ class _EducationListScreenState extends State<EducationListScreen> {
               return Card(child: ListTile(
                 title: Text(it['title'] ?? ''),
                 subtitle: Text('년도: ${it['year']}'),
-                onTap: (){ Navigator.of(context).push(MaterialPageRoute(builder: (_)=> EducationDetailScreen(id: it['id'] as String))); },
+                onTap: (){
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => EducationDetailScreen(id: it['id'] as String),
+                    ),
+                  );
+                },
               ));
             }
           )),
@@ -65,3 +80,4 @@ class _EducationListScreenState extends State<EducationListScreen> {
     );
   }
 }
+

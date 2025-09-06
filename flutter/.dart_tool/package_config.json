@@ -93,13 +93,13 @@
     },
     {
       "name": "flutter",
-      "rootUri": "file:///C:/SDK/flutter/packages/flutter",
+      "rootUri": "file:///C:/didiradirara/flutter/packages/flutter",
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
     {
       "name": "flutter_driver",
-      "rootUri": "file:///C:/SDK/flutter/packages/flutter_driver",
+      "rootUri": "file:///C:/didiradirara/flutter/packages/flutter_driver",
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
@@ -117,19 +117,19 @@
     },
     {
       "name": "flutter_test",
-      "rootUri": "file:///C:/SDK/flutter/packages/flutter_test",
+      "rootUri": "file:///C:/didiradirara/flutter/packages/flutter_test",
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
     {
       "name": "flutter_web_plugins",
-      "rootUri": "file:///C:/SDK/flutter/packages/flutter_web_plugins",
+      "rootUri": "file:///C:/didiradirara/flutter/packages/flutter_web_plugins",
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
     {
       "name": "fuchsia_remote_debug_protocol",
-      "rootUri": "file:///C:/SDK/flutter/packages/fuchsia_remote_debug_protocol",
+      "rootUri": "file:///C:/didiradirara/flutter/packages/fuchsia_remote_debug_protocol",
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
@@ -195,7 +195,7 @@
     },
     {
       "name": "integration_test",
-      "rootUri": "file:///C:/SDK/flutter/packages/integration_test",
+      "rootUri": "file:///C:/didiradirara/flutter/packages/integration_test",
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
@@ -363,7 +363,7 @@
     },
     {
       "name": "sky_engine",
-      "rootUri": "file:///C:/SDK/flutter/bin/cache/pkg/sky_engine",
+      "rootUri": "file:///C:/didiradirara/flutter/bin/cache/pkg/sky_engine",
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
@@ -478,7 +478,7 @@
   ],
   "generator": "pub",
   "generatorVersion": "3.9.0",
-  "flutterRoot": "file:///C:/SDK/flutter",
+  "flutterRoot": "file:///C:/didiradirara/flutter",
   "flutterVersion": "3.35.2",
   "pubCache": "file:///C:/Users/choi/AppData/Local/Pub/Cache"
 }

@@ -3,6 +3,8 @@ import '../api/client.dart';
 import '../api/session.dart';
 import '../api/auth_store.dart';
 import '../main.dart';
+import '../widgets/animated_text_field.dart';
+import '../widgets/animated_button.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -60,13 +62,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ApiSession.teamDetail = user['teamDetail'] as String?;
       await saveAuth(ApiSession.token ?? '', user);
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const FamilyOneApp()),
-          (r) => false);
+      familyOneAppKey.currentState?.onLoggedIn();
+      Navigator.of(context).popUntil((r) => r.isFirst);
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('등록 실패: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('등록 실패: $e')),
+        );
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -78,74 +80,76 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 orElse: () => {})['details'] as List?)
             ?.cast<String>() ??
         [];
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(title: const Text('회원가입')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(children: [
-          const Text('사용자 정보',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          Text('사용자 정보', style: textTheme.titleMedium),
           const SizedBox(height: 8),
-          TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                  border: OutlineInputBorder(), hintText: '이름')),
+          AnimatedTextField(
+            controller: nameCtrl,
+            hintText: '이름',
+            textInputAction: TextInputAction.next,
+          ),
           const SizedBox(height: 8),
           const Text('역할'),
           DropdownButton<String>(
-              value: role,
-              items: const [
-                DropdownMenuItem(value: 'worker', child: Text('작업자')),
-                DropdownMenuItem(value: 'manager', child: Text('매니저')),
-                DropdownMenuItem(value: 'admin', child: Text('관리자')),
-              ],
-              onChanged: (v) {
-                setState(() => role = v ?? 'worker');
-              }),
+            value: role,
+            items: const [
+              DropdownMenuItem(value: 'worker', child: Text('근로자')),
+              DropdownMenuItem(value: 'manager', child: Text('매니저')),
+              DropdownMenuItem(value: 'admin', child: Text('관리자')),
+            ],
+            onChanged: (v) => setState(() => role = v ?? 'worker'),
+          ),
           const SizedBox(height: 8),
           const Text('사업장'),
           DropdownButton<String>(
-              value: site,
-              items: const [
-                DropdownMenuItem(value: 'hq', child: Text('본사')),
-                DropdownMenuItem(value: 'jeonju', child: Text('전주공장')),
-                DropdownMenuItem(value: 'busan', child: Text('부산공장')),
-              ],
-              onChanged: (v) {
-                setState(() => site = v ?? 'jeonju');
-                loadTeams();
-              }),
+            value: site,
+            items: const [
+              DropdownMenuItem(value: 'hq', child: Text('본사')),
+              DropdownMenuItem(value: 'jeonju', child: Text('전주공장')),
+              DropdownMenuItem(value: 'busan', child: Text('부산공장')),
+            ],
+            onChanged: (v) {
+              setState(() => site = v ?? 'jeonju');
+              loadTeams();
+            },
+          ),
           const SizedBox(height: 8),
-          const Text('팀'),
+          const Text('부서'),
           DropdownButton<String>(
-              value: team,
-              items: [
-                for (final t in teams)
-                  DropdownMenuItem(
-                      value: t['team'] as String,
-                      child: Text(t['team'] as String))
-              ],
-              onChanged: (v) {
-                setState(() => team = v);
-              }),
+            value: team,
+            items: [
+              for (final t in teams)
+                DropdownMenuItem(
+                  value: t['team'] as String,
+                  child: Text(t['team'] as String),
+                )
+            ],
+            onChanged: (v) => setState(() => team = v),
+          ),
           const SizedBox(height: 8),
-          const Text('세부담당(선택)'),
+          const Text('세부 부서(선택)'),
           DropdownButton<String?>(
-              value: teamDetail,
-              items: [
-                const DropdownMenuItem(value: null, child: Text('선택 안함')),
-                ...details
-                    .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-              ],
-              onChanged: (v) {
-                setState(() => teamDetail = v);
-              }),
+            value: teamDetail,
+            items: [
+              const DropdownMenuItem(value: null, child: Text('선택 안함')),
+              ...details.map((d) => DropdownMenuItem(value: d, child: Text(d)))
+            ],
+            onChanged: (v) => setState(() => teamDetail = v),
+          ),
           const SizedBox(height: 12),
-          FilledButton(
-              onPressed: busy ? null : submit,
-              child: Text(busy ? '등록 중...' : '등록')),
+          AnimatedButton(
+            label: busy ? '등록 중…' : '등록',
+            onPressed: busy ? null : submit,
+            loading: busy,
+          ),
         ]),
       ),
     );
   }
 }
+

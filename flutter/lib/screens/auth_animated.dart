@@ -34,10 +34,8 @@ class _AnimatedAuthScreenState extends State<AnimatedAuthScreen> {
       ApiSession.teamDetail = res['user']?['teamDetail'] as String?;
       await saveAuth(ApiSession.token ?? '', Map<String, dynamic>.from(res['user'] as Map));
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const FamilyOneApp()),
-        (route) => false,
-      );
+      // Trigger the top-level app to rebuild into the authenticated UI
+      familyOneAppKey.currentState?.onLoggedIn();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -99,4 +97,3 @@ class _AnimatedAuthScreenState extends State<AnimatedAuthScreen> {
     );
   }
 }
-
