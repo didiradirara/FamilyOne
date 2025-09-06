@@ -2,7 +2,6 @@
 import 'screens/home.dart';
 import 'screens/report.dart';
 import 'screens/announcements.dart';
-import 'screens/checklist.dart';
 import 'screens/leave.dart';
 import 'screens/schedule.dart';
 import 'screens/auth.dart';
@@ -50,16 +49,14 @@ class _FamilyOneAppState extends State<FamilyOneApp> {
     _pages = [
       const HomeScreen(), const ReportScreen(), const AnnouncementsScreen(),
       if (isMgr) const ApprovalsScreen(),
-      const ChecklistScreen(), const EducationListScreen(), const LeaveScreen(), const ScheduleScreen(),
+      const EducationListScreen(), const LeaveScreen(), const ScheduleScreen(),
     ];
     _dests = [
       const NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
       const NavigationDestination(icon: Icon(Icons.report), label: 'Report'),
-      const NavigationDestination(icon: Icon(Icons.assignment), label: 'Requests'),
       const NavigationDestination(icon: Icon(Icons.campaign), label: 'Announce'),
       if (isMgr) const NavigationDestination(icon: Icon(Icons.verified), label: 'Approvals'),
-      const NavigationDestination(icon: Icon(Icons.checklist), label: 'Checklist'),
-      const NavigationDestination(icon: Icon(Icons.lightbulb), label: 'Suggest'),
+      const NavigationDestination(icon: Icon(Icons.school), label: 'Education'),
       const NavigationDestination(icon: Icon(Icons.beach_access), label: 'Leave'),
       const NavigationDestination(icon: Icon(Icons.schedule), label: 'Schedule'),
     ];
@@ -77,7 +74,18 @@ class _FamilyOneAppState extends State<FamilyOneApp> {
       title: 'FamilyOne',
       theme: ThemeData(useMaterial3: true),
       home: authed ? Scaffold(
-        appBar: AppBar(title: const Text('FamilyOne')),
+        appBar: AppBar(title: const Text('FamilyOne'), actions: [
+          if (_index == 0) IconButton(
+            tooltip: '로그아웃',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await clearAuth();
+              ApiSession.token=null; ApiSession.userId=null; ApiSession.userName=null; ApiSession.role=null; ApiSession.site=null;
+              if (!context.mounted) return;
+              Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AuthScreen()), (route)=>false);
+            },
+          )
+        ]),
         body: _pages[_index],
         bottomNavigationBar: AnimatedBuilder(
           animation: RealtimeStore.I,
@@ -85,16 +93,15 @@ class _FamilyOneAppState extends State<FamilyOneApp> {
             final isMgr = (ApiSession.role == 'manager' || ApiSession.role == 'admin');
             final dests = <NavigationDestination>[
               const NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-      const NavigationDestination(icon: Icon(Icons.report), label: 'Report'),
-      NavigationDestination(
-        icon: Stack(children:[const Icon(Icons.campaign), if (RealtimeStore.I.announcements>0) Positioned(right:0,top:0, child: _Dot(RealtimeStore.I.announcements))]),
-        label: 'Announce',
-      ),
-      if (isMgr) const NavigationDestination(icon: Icon(Icons.verified), label: 'Approvals'),
-      const NavigationDestination(icon: Icon(Icons.checklist), label: 'Checklist'),
-      const NavigationDestination(icon: Icon(Icons.school), label: 'Education'),
-      const NavigationDestination(icon: Icon(Icons.beach_access), label: 'Leave'),
-      const NavigationDestination(icon: Icon(Icons.schedule), label: 'Schedule'),
+              const NavigationDestination(icon: Icon(Icons.report), label: 'Report'),
+              NavigationDestination(
+                icon: Stack(children:[const Icon(Icons.campaign), if (RealtimeStore.I.announcements>0) Positioned(right:0,top:0, child: _Dot(RealtimeStore.I.announcements))]),
+                label: 'Announce',
+              ),
+              if (isMgr) const NavigationDestination(icon: Icon(Icons.verified), label: 'Approvals'),
+              const NavigationDestination(icon: Icon(Icons.school), label: 'Education'),
+              const NavigationDestination(icon: Icon(Icons.beach_access), label: 'Leave'),
+              const NavigationDestination(icon: Icon(Icons.schedule), label: 'Schedule'),
             ];
             return NavigationBar(
               selectedIndex: _index,

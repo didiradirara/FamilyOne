@@ -114,9 +114,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           ElevatedButton(onPressed: add, child: const Text('추가')),
           const Divider(),
         ],
-        // Legacy list
-        Expanded(child: ListView.builder(itemCount: items.length, itemBuilder: (c,i){ final it = items[i] as Map<String,dynamic>; return Card(child: ListTile(
-          title: Text('${it['date']} / ${(usersById[it['userId']]?['name'] ?? it['userId'])} / 조:${it['shift']}'),
+        // Legacy list (formatted)
+        Expanded(child: ListView.builder(itemCount: items.length, itemBuilder: (c,i){ final it = items[i] as Map<String,dynamic>; final u = usersById[it['userId']]; String _weekdayKo(int w)=> const ['일','월','화','수','목','금','토'][w%7]; String dateKo(){ try { final d=DateTime.parse(it['date'] as String); return '${d.year}년${d.month}월${d.day}일(${_weekdayKo(d.weekday)})'; } catch(_){ return it['date'] as String; } } return Card(child: ListTile(
+          title: Text('${dateKo()}, ${u?['team'] ?? ''}, ${u?['name'] ?? it['userId']}, ${u?['role'] ?? ''}, 근무조:${it['shift']}'),
           trailing: canEdit ? IconButton(onPressed: () => del(it['id'] as String), icon: const Icon(Icons.delete, color: Colors.red)) : null,
         )); }))
       ]),

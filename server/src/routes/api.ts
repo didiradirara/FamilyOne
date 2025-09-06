@@ -69,7 +69,14 @@ apiRouter.get('/reports', (req, res) => {
     team: typeof req.query.team === 'string' ? req.query.team : undefined,
     teamDetail: typeof req.query.teamDetail === 'string' ? req.query.teamDetail : undefined,
   };
-  res.json(repo.listReports(filter));
+  const list = repo.listReports(filter) as any[];
+  const out = list.map((r: any) => {
+    try {
+      const u = repo.findUserById(r.createdBy) as any;
+      return { ...r, userName: u?.name, userRole: u?.role };
+    } catch { return r; }
+  });
+  res.json(out);
 });
 apiRouter.patch('/reports/:id', requireRole('manager','admin'), (req, res) => {
   const statusSchema = z.object({ status: z.enum(['new', 'ack', 'resolved']) });
@@ -456,6 +463,41 @@ apiRouter.post('/uploads/stream', (req, res) => {
   }
 });
 
+// Simple weather info (demo)
+apiRouter.get('/weather', (_req, res) => {
+  // In production, integrate external API or sensors. Here we return a stub.
+  res.json({ temp: Number(process.env.MOCK_TEMP || 24), humidity: Number(process.env.MOCK_HUMID || 60), icon: process.env.MOCK_ICON || 'sunny', updatedAt: new Date().toISOString() });
+});
+
+// Leave absentees for today
+apiRouter.get('/leave/absent-today', (req, res) => {
+  const today = new Date().toISOString().slice(0,10);
+  const site = typeof req.query.site === 'string' ? (req.query.site as string) : (req.auth?.site || undefined);
+  const team = typeof req.query.team === 'string' ? (req.query.team as string) : undefined;
+  const all = repo.listLeaveRequests() as any[];
+  const out: any[] = [];
+  for (const lr of all) {
+    if (lr.state !== 'approved') continue;
+    const s = new Date(lr.startDate); const e = new Date(lr.endDate);
+    const t = new Date(today);
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) continue;
+    if (t.getTime() < new Date(s.toISOString().slice(0,10)).getTime()) continue;
+    if (t.getTime() > new Date(e.toISOString().slice(0,10)).getTime()) continue;
+    const u = repo.findUserById(lr.userId) as any;
+    if (site && u?.site && u.site !== site) continue;
+    if (team && u?.team && u.team !== team) continue;
+    out.push({ ...lr, userName: u?.name, userRole: u?.role, site: u?.site, team: u?.team, teamDetail: u?.teamDetail });
+  }
+  res.json(out);
+});
+
+// Announcement detail with creator info
+apiRouter.get('/announcements/:id', (req, res) => {
+  const ann = repo.getAnnouncementById(req.params.id) as any;
+  if (!ann) return res.sendStatus(404);
+  const u = repo.findUserById(ann.createdBy) as any;
+  res.json({ ...ann, createdByName: u?.name, createdByRole: u?.role });
+});
 // Users (manager/admin)
 apiRouter.get('/users', requireRole('manager','admin'), (req, res) => {
   const filter = {

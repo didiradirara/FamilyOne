@@ -106,7 +106,9 @@ CREATE TABLE IF NOT EXISTS leave_allocations (
 CREATE TABLE IF NOT EXISTS productions (
   id TEXT PRIMARY KEY,
   date TEXT NOT NULL,
-  name TEXT NOT NULL
+  name TEXT NOT NULL,
+  line INTEGER,
+  plannedQty INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS shifts (
@@ -165,6 +167,14 @@ CREATE TABLE IF NOT EXISTS shifts (
     if (!names.includes('teamDetail')) sqlite.exec("ALTER TABLE announcements ADD COLUMN teamDetail TEXT");
     if (!names.includes('mandatory')) sqlite.exec("ALTER TABLE announcements ADD COLUMN mandatory INTEGER NOT NULL DEFAULT 0");
     if (!names.includes('attachmentsJson')) sqlite.exec("ALTER TABLE announcements ADD COLUMN attachmentsJson TEXT");
+  } catch {}
+
+  // Migrations for productions: add line, plannedQty if missing
+  try {
+    const cols = sqlite.prepare('PRAGMA table_info(productions)').all() as any[];
+    const names = cols.map(c => c.name);
+    if (!names.includes('line')) sqlite.exec("ALTER TABLE productions ADD COLUMN line INTEGER");
+    if (!names.includes('plannedQty')) sqlite.exec("ALTER TABLE productions ADD COLUMN plannedQty INTEGER");
   } catch {}
 
   // Migration for leave_requests: add signature column
@@ -240,9 +250,9 @@ export function seedDb() {
     const countProd = sqlite.prepare('SELECT COUNT(*) as c FROM productions').get() as any;
     if (!countProd || countProd.c === 0) {
       const today = new Date().toISOString().slice(0,10);
-      const ins = sqlite.prepare('INSERT INTO productions (id,date,name) VALUES (?,?,?)');
-      ins.run(randomUUID(), today, '샘플제품A');
-      ins.run(randomUUID(), today, '샘플제품B');
+      const ins = sqlite.prepare('INSERT INTO productions (id,date,name,line,plannedQty) VALUES (?,?,?,?,?)');
+      ins.run(randomUUID(), today, '샘플제품A', 1, 100);
+      ins.run(randomUUID(), today, '샘플제품B', 2, 80);
     }
   } catch {}
 

@@ -8,6 +8,7 @@
       "version": "0.1.0+1",
       "dependencies": [
         "cupertino_icons",
+        "file_picker",
         "flutter",
         "http",
         "image_picker",
@@ -65,6 +66,15 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "table_calendar",
+      "version": "3.2.0",
+      "dependencies": [
+        "flutter",
+        "intl",
+        "simple_gesture_detector"
       ]
     },
     {
@@ -237,6 +247,22 @@
       "dependencies": [
         "clock",
         "collection"
+      ]
+    },
+    {
+      "name": "simple_gesture_detector",
+      "version": "0.2.1",
+      "dependencies": [
+        "flutter"
+      ]
+    },
+    {
+      "name": "intl",
+      "version": "0.20.2",
+      "dependencies": [
+        "clock",
+        "meta",
+        "path"
       ]
     },
     {
@@ -641,28 +667,25 @@
       ]
     },
     {
-      "name": "table_calendar",
-      "version": "3.2.0",
+      "name": "file_picker",
+      "version": "8.3.7",
       "dependencies": [
+        "cross_file",
+        "ffi",
         "flutter",
-        "intl",
-        "simple_gesture_detector"
+        "flutter_plugin_android_lifecycle",
+        "flutter_web_plugins",
+        "path",
+        "plugin_platform_interface",
+        "web",
+        "win32"
       ]
     },
     {
-      "name": "simple_gesture_detector",
-      "version": "0.2.1",
+      "name": "win32",
+      "version": "5.14.0",
       "dependencies": [
-        "flutter"
-      ]
-    },
-    {
-      "name": "intl",
-      "version": "0.20.2",
-      "dependencies": [
-        "clock",
-        "meta",
-        "path"
+        "ffi"
       ]
     }
   ],

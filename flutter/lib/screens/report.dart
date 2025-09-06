@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../api/client.dart';
 import 'report_detail.dart';
 import '../api/session.dart';
@@ -22,6 +24,7 @@ class _ReportScreenState extends State<ReportScreen> {
   List<Map<String, dynamic>> teams = [];
   String selectedTeam = 'all';
   String selectedDetail = 'all';
+  final List<String> images = [];
   bool _firstLoad = true;
 
   Future<void> load() async {
@@ -71,9 +74,11 @@ class _ReportScreenState extends State<ReportScreen> {
       await api.post('/api/reports', {
         'type': 'machine_fault',
         'message': msgCtrl.text,
+        if (images.isNotEmpty) 'images': images,
       });
       if (!mounted) return;
       msgCtrl.clear();
+      images.clear();
       await load();
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('보고 완료')));
@@ -93,6 +98,25 @@ class _ReportScreenState extends State<ReportScreen> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('실패: $e')));
     }
+  }
+
+  Future<void> pickImages() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickMultiImage(maxWidth: 1600, imageQuality: 85);
+      if (picked.isEmpty) return;
+      for (final x in picked) {
+        final bytes = await x.readAsBytes();
+        final isPng = x.path.toLowerCase().endsWith('.png');
+        final dataUrl = 'data:image/' + (isPng ? 'png' : 'jpeg') + ';base64,' + base64Encode(bytes);
+        try {
+          final up = await api.post('/api/uploads/base64', { 'data': dataUrl, 'filename': x.name });
+          final url = up['url'] as String?;
+          if (url != null) images.add(url);
+        } catch (_) {}
+      }
+      if (mounted) setState(() {});
+    } catch (_) {}
   }
 
   @override
@@ -156,12 +180,18 @@ class _ReportScreenState extends State<ReportScreen> {
             decoration: const InputDecoration(
                 border: OutlineInputBorder(), hintText: '메시지')),
         const SizedBox(height: 8),
-        ElevatedButton(onPressed: submit, child: const Text('제출')),
+        Row(children:[
+          ElevatedButton(onPressed: submit, child: const Text('제출')),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(onPressed: pickImages, icon: const Icon(Icons.add_a_photo), label: const Text('사진 첨부')),
+        ]),
+        if (images.isNotEmpty) Padding(padding: const EdgeInsets.only(top:8), child: Wrap(spacing: 6, children: [ for (final u in images) Chip(label: Text(u.split('/').last), onDeleted: ()=> setState(()=> images.remove(u))) ])),
         const Divider(),
         const Text('보고 목록'),
         const SizedBox(height: 8),
         TextField(
             controller: qCtrl,
+            onChanged: (_)=> setState((){}),
             decoration: const InputDecoration(
                 border: OutlineInputBorder(), hintText: '검색(메시지/종류/상태)')),
         const SizedBox(height: 8),
@@ -194,28 +224,6 @@ class _ReportScreenState extends State<ReportScreen> {
         ]),
         const SizedBox(height: 8),
         Row(children: [
-          Expanded(
-              child: TextField(
-                  controller: fromCtrl,
-                  readOnly: true,
-                  onTap: _pickFrom,
-                  decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
-                      hintText: 'From YYYY-MM-DD',
-                      suffixIcon: IconButton(icon: const Icon(Icons.date_range), onPressed: _pickFrom)))),
-          const SizedBox(width: 8),
-          Expanded(
-              child: TextField(
-                  controller: toCtrl,
-                  readOnly: true,
-                  onTap: _pickTo,
-                  decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
-                      hintText: 'To YYYY-MM-DD',
-                      suffixIcon: IconButton(icon: const Icon(Icons.date_range), onPressed: _pickTo)))),
-        ]),
-        const SizedBox(height: 8),
-        Row(children: [
           DropdownButton<String>(
               value: selectedTeam,
               items: [
@@ -224,26 +232,17 @@ class _ReportScreenState extends State<ReportScreen> {
                     value: t['team'] as String,
                     child: Text(t['team'] as String)))
               ],
-              onChanged: (v) {
-                setState(() {
-                  selectedTeam = v ?? 'all';
-                  selectedDetail = 'all';
-                });
-              }),
+              onChanged: (v) { setState(() { selectedTeam = v ?? 'all'; }); }),
           const SizedBox(width: 8),
           DropdownButton<String>(
-              value: selectedDetail,
-              items: [
-                const DropdownMenuItem(value: 'all', child: Text('전체 세부담당')),
-                ...((teams.firstWhere((t) => t['team'] == selectedTeam,
-                            orElse: () => {})['details'] as List?) ??
-                        [])
-                    .map((d) => DropdownMenuItem(
-                        value: d as String, child: Text(d as String)))
+              value: statusFilter,
+              items: const [
+                DropdownMenuItem(value: 'all', child: Text('전체 상태')),
+                DropdownMenuItem(value: 'new', child: Text('신규')),
+                DropdownMenuItem(value: 'ack', child: Text('접수')),
+                DropdownMenuItem(value: 'resolved', child: Text('해결')),
               ],
-              onChanged: (v) {
-                setState(() => selectedDetail = v ?? 'all');
-              }),
+              onChanged: (v) { setState(() => statusFilter = v ?? 'all'); }),
         ]),
         const SizedBox(height: 8),
         Expanded(
@@ -257,27 +256,12 @@ class _ReportScreenState extends State<ReportScreen> {
                   final okT = typeFilter == 'all' || it['type'] == typeFilter;
                   final okS =
                       statusFilter == 'all' || it['status'] == statusFilter;
-                  final okFrom = fromCtrl.text.trim().isEmpty ||
-                      DateTime.tryParse(it['createdAt'] ?? '') != null &&
-                          DateTime.parse(it['createdAt']).isAfter(
-                              DateTime.parse(fromCtrl.text.trim())
-                                  .subtract(const Duration(seconds: 1)));
-                  final okTo = toCtrl.text.trim().isEmpty ||
-                      DateTime.tryParse(it['createdAt'] ?? '') != null &&
-                          DateTime.parse(it['createdAt']).isBefore(
-                              DateTime.parse(toCtrl.text.trim())
-                                  .add(const Duration(days: 1)));
                   final okTeam = selectedTeam == 'all' ||
                       (it['team'] ?? '') == selectedTeam;
-                  final okDetail = selectedDetail == 'all' ||
-                      (it['teamDetail'] ?? '') == selectedDetail;
                   return okQ &&
                       okT &&
                       okS &&
-                      okFrom &&
-                      okTo &&
-                      okTeam &&
-                      okDetail;
+                      okTeam;
                 }).length,
                 itemBuilder: (c, i) {
                   final filtered = items.where((it) {
@@ -289,33 +273,18 @@ class _ReportScreenState extends State<ReportScreen> {
                     final okT = typeFilter == 'all' || it['type'] == typeFilter;
                     final okS =
                         statusFilter == 'all' || it['status'] == statusFilter;
-                    final okFrom = fromCtrl.text.trim().isEmpty ||
-                        DateTime.tryParse(it['createdAt'] ?? '') != null &&
-                            DateTime.parse(it['createdAt']).isAfter(
-                                DateTime.parse(fromCtrl.text.trim())
-                                    .subtract(const Duration(seconds: 1)));
-                    final okTo = toCtrl.text.trim().isEmpty ||
-                        DateTime.tryParse(it['createdAt'] ?? '') != null &&
-                            DateTime.parse(it['createdAt']).isBefore(
-                                DateTime.parse(toCtrl.text.trim())
-                                    .add(const Duration(days: 1)));
                     final okTeam = selectedTeam == 'all' ||
                         (it['team'] ?? '') == selectedTeam;
-                    final okDetail = selectedDetail == 'all' ||
-                        (it['teamDetail'] ?? '') == selectedDetail;
-                    return okQ &&
-                        okT &&
-                        okS &&
-                        okFrom &&
-                        okTo &&
-                        okTeam &&
-                        okDetail;
+                    return okQ && okT && okS && okTeam;
                   }).toList();
                   final it = filtered[i];
-                  return Card(
-                      child: ListTile(
-                    title: Text('[${it['status']}] ${it['type']}'),
-                    subtitle: Text(it['message'] ?? ''),
+                  Color? bg;
+                  String st = (it['status'] ?? '') as String;
+                  String stKo = st=='new'?'신규':(st=='ack'?'접수':(st=='resolved'?'해결':st));
+                  if (st=='new') bg = Colors.red.shade50; else if (st=='ack') bg = Colors.amber.shade50; else if (st=='resolved') bg = Colors.green.shade50;
+                  return Card(color: bg, child: ListTile(
+                    title: Text('[$stKo] ${it['message'] ?? ''}'),
+                    subtitle: Text('${it['userName'] ?? it['createdBy']} (${it['userRole'] ?? ''}) / ${(it['team'] ?? '')}'),
                     onTap: () {
                       Navigator.of(context)
                           .push(MaterialPageRoute(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/client.dart';
 import '../api/session.dart';
 import '../realtime/realtime.dart';
+import 'announcement_detail.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
@@ -212,44 +213,59 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 itemBuilder: (c, i) {
                   final it = items[i] as Map<String, dynamic>;
                   final readN = (it['readBy'] as List?)?.length ?? 0;
+                  final isMand = (it['mandatory'] ?? false) == true;
+                  final att =
+                      (it['attachments'] as List?)?.cast<String>() ?? [];
+                  final color = isMand ? Colors.red : null;
                   return Card(
-                      child: ListTile(
-                    title: Row(children: [
-                      Expanded(child: Text(it['title'] ?? '')),
-                      if ((it['mandatory'] ?? false) == true)
-                        const Padding(
-                            padding: EdgeInsets.only(left: 8),
-                            child: Chip(label: Text('필수'))),
-                    ]),
-                    subtitle: Column(
+                    child: ListTile(
+                      title: Row(
+                        children: [
+                          Expanded(
+                              child: Text(it['title'] ?? '',
+                                  style: TextStyle(color: color))),
+                          if (isMand)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 8),
+                              child: Chip(label: Text('필수')),
+                            ),
+                        ],
+                      ),
+                      subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(it['body'] ?? ''),
-                          if ((it['attachments'] as List?)?.isNotEmpty == true)
+                          Text(it['body'] ?? '',
+                              style: TextStyle(color: color)),
+                          if (att.isNotEmpty)
                             Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child:
-                                    Wrap(spacing: 8, runSpacing: 4, children: [
-                                  for (final u in (it['attachments'] as List)
-                                      .cast<String>())
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  for (final u in att)
                                     InkWell(
                                       onTap: () => showDialog(
-                                          context: context,
-                                          builder: (_) => AlertDialog(
-                                              content: Image.network(
-                                                  ApiClient().base +
-                                                      (u.startsWith('/')
-                                                          ? u
-                                                          : '/$u')))),
-                                      child: Text('첨부:' + u.split('/').last),
-                                    )
-                                ])),
-                        ]),
-                    trailing: Column(
+                                        context: context,
+                                        builder: (_) => AlertDialog(
+                                          content: Image.network(ApiClient()
+                                                  .base +
+                                              (u.startsWith('/') ? u : '/$u')),
+                                        ),
+                                      ),
+                                      child: Text('첨부:' + u.split('/').last,
+                                          style: TextStyle(color: color)),
+                                    ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                      trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text('읽음 $readN'),
-                          if (isAdmin && (it['mandatory'] ?? false) == true)
+                          if (isAdmin && isMand)
                             TextButton(
                                 onPressed: () async {
                                   try {
@@ -260,26 +276,35 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                     showDialog(
                                         context: context,
                                         builder: (_) => AlertDialog(
-                                            title: const Text('미확인자'),
-                                            content: SizedBox(
-                                                width: 360,
-                                                child: ListView(
-                                                    shrinkWrap: true,
-                                                    children: [
-                                                      for (final u in list)
-                                                        ListTile(
-                                                            title: Text(
-                                                                u['name'] ??
-                                                                    ''),
-                                                            subtitle: Text(
-                                                                '${u['team'] ?? ''}${(u['teamDetail'] ?? '') != '' ? ' / ' + (u['teamDetail'] ?? '') : ''} (${u['role'] ?? ''})'))
-                                                    ]))));
+                                              title: const Text('미확인자'),
+                                              content: SizedBox(
+                                                  width: 360,
+                                                  child: ListView(
+                                                      shrinkWrap: true,
+                                                      children: [
+                                                        for (final u in list)
+                                                          ListTile(
+                                                              title: Text(
+                                                                  u['name'] ??
+                                                                      ''),
+                                                              subtitle: Text(
+                                                                  '${u['team'] ?? ''}${(u['teamDetail'] ?? '') != '' ? ' / ' + (u['teamDetail'] ?? '') : ''} (${u['role'] ?? ''})'))
+                                                      ])),
+                                            ));
                                   } catch (_) {}
                                 },
                                 child: const Text('미확인자'))
-                        ]),
-                    onTap: () => markRead(it['id'] as String),
-                  ));
+                        ],
+                      ),
+                      onTap: () async {
+                        await markRead(it['id'] as String);
+                        if (!mounted) return;
+                        Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => AnnouncementDetailScreen(
+                                id: it['id'] as String)));
+                      },
+                    ),
+                  );
                 }))
       ]),
     );

@@ -296,9 +296,9 @@ export const repo = {
   deleteShift(id: string) { sqlite.prepare('DELETE FROM shifts WHERE id=?').run(id); return true; },
 
   // Productions
-  createProduction(data: { date: string; name: string }) {
+  createProduction(data: { date: string; name: string; line?: number; plannedQty?: number }) {
     const id = uuid();
-    sqlite.prepare('INSERT INTO productions (id,date,name) VALUES (?,?,?)').run(id, data.date, data.name);
+    sqlite.prepare('INSERT INTO productions (id,date,name,line,plannedQty) VALUES (?,?,?,?,?)').run(id, data.date, data.name, data.line ?? null, data.plannedQty ?? null);
     return { id, ...data } as any;
   },
   listProductionsByDate(date: string) {
