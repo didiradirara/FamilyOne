@@ -4,12 +4,13 @@ import 'screens/report.dart';
 import 'screens/announcements.dart';
 import 'screens/leave.dart';
 import 'screens/schedule.dart';
-import 'screens/auth.dart';
+import 'screens/auth_animated.dart';
 import 'screens/approvals.dart';
 import 'screens/education_list.dart';
 import 'api/session.dart';
 import 'api/auth_store.dart';
 import 'realtime/realtime.dart';
+import 'theme/transitions.dart';
 
 void main() {
   runApp(const FamilyOneApp());
@@ -23,6 +24,7 @@ class FamilyOneApp extends StatefulWidget {
 
 class _FamilyOneAppState extends State<FamilyOneApp> {
   int _index = 0;
+  int _lastIndex = 0;
   late List<Widget> _pages;
   late List<NavigationDestination> _dests;
   bool _loaded = false;
@@ -32,7 +34,7 @@ class _FamilyOneAppState extends State<FamilyOneApp> {
     super.initState();
     ApiSession.onUnauthorized = () {
       ApiSession.token = null; ApiSession.userId = null; ApiSession.userName = null; ApiSession.role = null; ApiSession.site = null;
-      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AuthScreen()), (route) => false);
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AnimatedAuthScreen()), (route) => false);
     };
     () async {
       await loadAuth();
@@ -72,7 +74,18 @@ class _FamilyOneAppState extends State<FamilyOneApp> {
     if (authed) _rebuildTabs();
     return MaterialApp(
       title: 'FamilyOne',
-      theme: ThemeData(useMaterial3: true),
+      theme: ThemeData(
+        useMaterial3: true,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: ZoomFadePageTransitionsBuilder(),
+            TargetPlatform.iOS: ZoomFadePageTransitionsBuilder(),
+            TargetPlatform.linux: ZoomFadePageTransitionsBuilder(),
+            TargetPlatform.macOS: ZoomFadePageTransitionsBuilder(),
+            TargetPlatform.windows: ZoomFadePageTransitionsBuilder(),
+          },
+        ),
+      ),
       home: authed ? Scaffold(
         appBar: AppBar(title: const Text('FamilyOne'), actions: [
           if (_index == 0) IconButton(
@@ -82,11 +95,27 @@ class _FamilyOneAppState extends State<FamilyOneApp> {
               await clearAuth();
               ApiSession.token=null; ApiSession.userId=null; ApiSession.userName=null; ApiSession.role=null; ApiSession.site=null;
               if (!context.mounted) return;
-              Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AuthScreen()), (route)=>false);
+              Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AnimatedAuthScreen()), (route)=>false);
             },
           )
         ]),
-        body: _pages[_index],
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeOutCubic,
+          transitionBuilder: (child, anim) {
+            final fromRight = _index >= _lastIndex;
+            final offsetTween = Tween<Offset>(
+              begin: fromRight ? const Offset(0.08, 0) : const Offset(-0.08, 0),
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Curves.easeOutCubic));
+            return FadeTransition(
+              opacity: anim,
+              child: SlideTransition(position: anim.drive(offsetTween), child: child),
+            );
+          },
+          child: KeyedSubtree(key: ValueKey(_index), child: _pages[_index]),
+        ),
         bottomNavigationBar: AnimatedBuilder(
           animation: RealtimeStore.I,
           builder: (context, _) {
@@ -106,11 +135,11 @@ class _FamilyOneAppState extends State<FamilyOneApp> {
             return NavigationBar(
               selectedIndex: _index,
               destinations: dests,
-              onDestinationSelected: (i) => setState(() => _index = i),
+              onDestinationSelected: (i) => setState(() { _lastIndex = _index; _index = i; }),
             );
           }
         ),
-      ) : const AuthScreen(),
+      ) : const AnimatedAuthScreen(),
     );
   }
 }
