@@ -79,6 +79,22 @@ export const repo = {
     const updated = sqlite.prepare('SELECT * FROM reports WHERE id = ?').get(id) as any;
     return { ...updated, images: updated.imagesJson ? JSON.parse(updated.imagesJson) : [] } as any;
   },
+  createReportReply(data: { content: string; authorId: string; reportId: string }) {
+    const id = uuid();
+    const now = new Date().toISOString();
+    sqlite.prepare('INSERT INTO report_replies (id, content, createdAt, authorId, reportId) VALUES (?, ?, ?, ?, ?)')
+      .run(id, data.content, now, data.authorId, data.reportId);
+    const row = sqlite.prepare('SELECT * FROM report_replies WHERE id = ?').get(id) as any;
+    const author = this.findUserById(row.authorId);
+    return { ...row, author };
+  },
+  listReportReplies(reportId: string) {
+    const rows = sqlite.prepare('SELECT * FROM report_replies WHERE reportId = ? ORDER BY createdAt ASC').all(reportId) as any[];
+    return rows.map(r => {
+      const author = this.findUserById(r.authorId);
+      return { ...r, author };
+    });
+  },
 
   // Org structure
   listSites() { return sqlite.prepare('SELECT site,name FROM sites').all() as any[]; },
@@ -114,33 +130,13 @@ export const repo = {
     if (!teamDetail) return false;
     return details.includes(teamDetail);
   },
-  // Requests
-  createRequest(data: { kind: string; details: string; createdBy: string; site?: string; team?: string; teamDetail?: string | null }): RequestItem {
-    const id = uuid(); const now = new Date().toISOString();
-    sqlite.prepare('INSERT INTO requests (id,kind,details,createdAt,createdBy,state,site,team,teamDetail) VALUES (?,?,?,?,?,?,?,?,?)')
-      .run(id, data.kind, data.details, now, data.createdBy, 'pending', data.site ?? null, data.team ?? null, data.teamDetail ?? null);
-    return { id, kind: data.kind as any, details: data.details, createdAt: now, createdBy: data.createdBy, state: 'pending', site: data.site, team: data.team, teamDetail: data.teamDetail } as any;
-  },
-  listRequests(filter?: { site?: string; team?: string; teamDetail?: string }): RequestItem[] {
-    const { where, params } = buildFilter(filter);
-    const sql = `SELECT * FROM requests ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY createdAt DESC`;
-    return sqlite.prepare(sql).all(...params) as any;
-  },
-  setRequestState(id: string, state: 'approved'|'rejected', reviewerId: string) {
-    const ts = new Date().toISOString();
-    sqlite.prepare('UPDATE requests SET state=?, reviewerId=?, reviewedAt=? WHERE id=?').run(state, reviewerId, ts, id);
-    return sqlite.prepare('SELECT * FROM requests WHERE id=?').get(id) as any;
-  },
 
   // Announcements
-  createAnnouncement(data: { title: string; body: string; createdBy: string; site?: string; team?: string; teamDetail?: string | null }): Announcement {
+  createAnnouncement(data: { title: string; body: string; createdBy: string; site?: string; team?: string; teamDetail?: string | null; mustRead?: boolean; attachmentUrl?: string }): Announcement {
     const id = uuid(); const now = new Date().toISOString();
-    sqlite.prepare('INSERT INTO announcements (id,title,body,createdAt,createdBy,readBy,site,team,teamDetail) VALUES (?,?,?,?,?,?,?, ?, ?)')
-      .run(id, data.title, data.body, now, data.createdBy, JSON.stringify([]), data.site ?? null, data.team ?? null, data.teamDetail ?? null);
-    return { id, title: data.title, body: data.body, createdAt: now, createdBy: data.createdBy, readBy: [], site: data.site, team: data.team, teamDetail: data.teamDetail } as any;
-  },
-  getRequestById(id: string) {
-    return sqlite.prepare('SELECT * FROM requests WHERE id=?').get(id) as any;
+    sqlite.prepare('INSERT INTO announcements (id,title,body,createdAt,createdBy,readBy,site,team,teamDetail,mustRead,attachmentUrl) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+      .run(id, data.title, data.body, now, data.createdBy, JSON.stringify([]), data.site ?? null, data.team ?? null, data.teamDetail ?? null, data.mustRead ? 1 : 0, data.attachmentUrl ?? null);
+    return { id, title: data.title, body: data.body, createdAt: now, createdBy: data.createdBy, readBy: [], site: data.site, team: data.team, teamDetail: data.teamDetail, mustRead: data.mustRead, attachmentUrl: data.attachmentUrl } as any;
   },
   listAnnouncements(filter?: { site?: string; team?: string; teamDetail?: string }): Announcement[] {
     const { where, params } = buildFilter(filter);
@@ -156,6 +152,20 @@ export const repo = {
     const updated = sqlite.prepare('SELECT * FROM announcements WHERE id=?').get(id) as any;
     return { ...updated, readBy: JSON.parse(updated.readBy) } as any;
   },
+  getUnreadUsersForAnnouncement(announcementId: string): User[] {
+    const ann = sqlite.prepare('SELECT * FROM announcements WHERE id=?').get(announcementId) as any;
+    if (!ann || !ann.mustRead) return [];
+    const readBy = new Set(JSON.parse(ann.readBy));
+    let users: User[] = [];
+    if (ann.site && ann.team) {
+      users = sqlite.prepare('SELECT * FROM users WHERE site=? AND team=?').all(ann.site, ann.team) as any[];
+    } else if (ann.site) {
+      users = sqlite.prepare('SELECT * FROM users WHERE site=?').all(ann.site) as any[];
+    } else {
+      users = sqlite.prepare('SELECT * FROM users').all() as any[];
+    }
+    return users.filter(u => !readBy.has(u.id));
+  },
 
   // Checklists
   getChecklistTemplates(category: 'safety'|'quality') {
@@ -167,15 +177,6 @@ export const repo = {
     return { id, ...data } as any;
   },
 
-  // Suggestions
-  createSuggestion(data: { text: string; anonymous: boolean; createdBy?: string }): Suggestion {
-    const id = uuid(); const now = new Date().toISOString();
-    sqlite.prepare('INSERT INTO suggestions (id,text,createdAt,anonymous,createdBy) VALUES (?,?,?,?,?)')
-      .run(id, data.text, now, data.anonymous ? 1 : 0, data.createdBy ?? null);
-    return { id, text: data.text, createdAt: now, anonymous: data.anonymous, createdBy: data.createdBy } as any;
-  },
-  listSuggestions(): Suggestion[] { return sqlite.prepare('SELECT * FROM suggestions ORDER BY createdAt DESC').all() as any; },
-
   // Leave requests
   createLeaveRequest(data: { userId: string; startDate: string; endDate: string; reason?: string; signature?: string }): LeaveRequest {
     const id = uuid();
@@ -184,9 +185,13 @@ export const repo = {
     return { id, ...data, state: 'pending' } as any;
   },
   listLeaveRequests(): LeaveRequest[] { return sqlite.prepare('SELECT * FROM leave_requests ORDER BY startDate DESC').all() as any; },
-  setLeaveState(id: string, state: 'approved'|'rejected', reviewerId: string) {
+  setLeaveState(id: string, state: 'approved'|'rejected', reviewerId: string, rejectionReason?: string) {
     const ts = new Date().toISOString();
-    sqlite.prepare('UPDATE leave_requests SET state=?, reviewerId=?, reviewedAt=? WHERE id=?').run(state, reviewerId, ts, id);
+    if (state === 'rejected') {
+      sqlite.prepare('UPDATE leave_requests SET state=?, reviewerId=?, reviewedAt=?, rejectionReason=? WHERE id=?').run(state, reviewerId, ts, rejectionReason, id);
+    } else {
+      sqlite.prepare('UPDATE leave_requests SET state=?, reviewerId=?, reviewedAt=? WHERE id=?').run(state, reviewerId, ts, id);
+    }
     return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id) as any;
   },
   getLeaveById(id: string) { return sqlite.prepare('SELECT * FROM leave_requests WHERE id=?').get(id) as any; },
@@ -242,7 +247,25 @@ export const repo = {
       .run(id, data.date, data.userId, data.shift);
     return { id, ...data } as any;
   },
-  listShifts() { return sqlite.prepare('SELECT * FROM shifts ORDER BY date DESC').all() as any[]; },
+  listShifts(filters?: { userId?: string; team?: string; }): any[] {
+    let sql = 'SELECT s.*, u.name as userName FROM shifts s JOIN users u ON s.userId = u.id';
+    const where: string[] = [];
+    const params: any[] = [];
+
+    if (filters?.userId) {
+        where.push('s.userId = ?');
+        params.push(filters.userId);
+    } else if (filters?.team) {
+        where.push('u.team = ?');
+        params.push(filters.team);
+    }
+
+    if (where.length) {
+        sql += ' WHERE ' + where.join(' AND ');
+    }
+    sql += ' ORDER BY s.date DESC';
+    return sqlite.prepare(sql).all(...params) as any[];
+  },
   updateShift(id: string, patch: Partial<{ date: string; userId: string; shift: string }>) {
     const cur = sqlite.prepare('SELECT * FROM shifts WHERE id=?').get(id) as any;
     if (!cur) return undefined;
@@ -261,5 +284,23 @@ export const repo = {
   },
   listProductionsByDate(date: string) {
     return sqlite.prepare('SELECT * FROM productions WHERE date = ?').all(date) as any[];
+  },
+
+  // Trainings
+  listTrainings(year: number) {
+    return sqlite.prepare('SELECT * FROM trainings WHERE year = ? ORDER BY title').all(year) as any[];
+  },
+  getTrainingById(id: string) {
+    return sqlite.prepare('SELECT * FROM trainings WHERE id = ?').get(id) as any;
+  },
+  createTrainingCompletion(data: { trainingId: string; userId: string; signature: string }) {
+    const id = uuid();
+    const now = new Date().toISOString();
+    sqlite.prepare('INSERT INTO training_completions (id, trainingId, userId, completedAt, signature) VALUES (?, ?, ?, ?, ?)')
+      .run(id, data.trainingId, data.userId, now, data.signature);
+    return sqlite.prepare('SELECT * FROM training_completions WHERE id = ?').get(id) as any;
+  },
+  listTrainingCompletions(userId: string) {
+    return sqlite.prepare('SELECT * FROM training_completions WHERE userId = ?').all(userId) as any[];
   },
 };

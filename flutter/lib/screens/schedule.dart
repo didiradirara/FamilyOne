@@ -1,65 +1,115 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:table_calendar/table_calendar.dart';
 import '../api/client.dart';
 import '../api/session.dart';
+import 'dart:collection';
 
-class ScheduleScreen extends StatefulWidget { const ScheduleScreen({super.key});
-  @override State<ScheduleScreen> createState()=>_ScheduleScreenState(); }
+class ScheduleScreen extends StatefulWidget {
+  const ScheduleScreen({super.key});
+  @override
+  State<ScheduleScreen> createState() => _ScheduleScreenState();
+}
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
   final ApiClient api = ApiClient();
-  List<dynamic> items = [];
-  bool loading = true;
-  final dateCtrl = TextEditingController();
-  final shiftCtrl = TextEditingController(text: 'A');
+  late final ValueNotifier<List<dynamic>> _selectedEvents;
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  Map<DateTime, List<dynamic>> _events = {};
 
-  bool get canEdit => (ApiSession.role == 'manager' || ApiSession.role == 'admin');
-
-  Future<void> load() async { try { items = await api.get('/api/schedule'); } finally { if (mounted) setState(()=>loading=false); } }
-  @override void initState(){ super.initState(); load(); }
-
-  Future<void> add() async {
-    try {
-      final uid = ApiSession.userId ?? '';
-      if (uid.isEmpty) throw Exception('로그인이 필요합니다');
-      await api.post('/api/schedule', { 'date': dateCtrl.text, 'userId': uid, 'shift': shiftCtrl.text });
-      dateCtrl.clear(); shiftCtrl.text = 'A'; await load();
-    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('실패: $e'))); }
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = _focusedDay;
+    _selectedEvents = ValueNotifier(_getEventsForDay(_selectedDay!));
+    loadSchedules();
   }
 
-  Future<void> del(String id) async {
-    try { final res = await api.deleteRaw('/api/schedule/$id'); if (res.statusCode>=200&&res.statusCode<300) await load(); else throw Exception(res.body); }
-    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('삭제 실패: $e'))); }
+  void loadSchedules() async {
+    try {
+      final items = await api.get('/api/schedule');
+      final events = <DateTime, List<dynamic>>{};
+      for (var item in items) {
+        final day = DateTime.parse(item['date']);
+        if (events[day] == null) {
+          events[day] = [];
+        }
+        events[day]!.add(item);
+      }
+      setState(() {
+        _events = events;
+      });
+    } catch (e) {
+      // handle error
+    }
+  }
+
+  List<dynamic> _getEventsForDay(DateTime day) {
+    return _events[day] ?? [];
+  }
+
+  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    if (!isSameDay(_selectedDay, selectedDay)) {
+      setState(() {
+        _selectedDay = selectedDay;
+        _focusedDay = focusedDay;
+      });
+      _selectedEvents.value = _getEventsForDay(selectedDay);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Center(child: CircularProgressIndicator());
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('근무 스케줄', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        if (canEdit) ...[
-          const Text('스케줄 추가'), const SizedBox(height: 4),
-          Row(children: [
-            ElevatedButton(onPressed: (){ final t=DateTime.now().toIso8601String().substring(0,10); dateCtrl.text=t; setState((){}); }, child: const Text('오늘')),
-            const SizedBox(width: 8),
-            ElevatedButton(onPressed: (){ final d=DateTime.now().add(const Duration(days:1)); dateCtrl.text=d.toIso8601String().substring(0,10); setState((){}); }, child: const Text('내일')),
-          ]),
-          const SizedBox(height: 4),
-          TextField(controller: dateCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'YYYY-MM-DD')),
-          const SizedBox(height: 4),
-          // UUID 입력 제거: 로그인 사용자로 자동 처리
-          TextField(controller: shiftCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '근무조 (A/B/C)')),
-          const SizedBox(height: 4),
-          ElevatedButton(onPressed: add, child: const Text('추가')),
-          const Divider(),
+    return Scaffold(
+      appBar: AppBar(title: const Text('근무 스케줄')),
+      body: Column(
+        children: [
+          TableCalendar(
+            firstDay: DateTime.utc(2020, 1, 1),
+            lastDay: DateTime.utc(2030, 12, 31),
+            focusedDay: _focusedDay,
+            calendarFormat: _calendarFormat,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            onDaySelected: _onDaySelected,
+            eventLoader: _getEventsForDay,
+            onFormatChanged: (format) {
+              if (_calendarFormat != format) {
+                setState(() {
+                  _calendarFormat = format;
+                });
+              }
+            },
+            onPageChanged: (focusedDay) {
+              _focusedDay = focusedDay;
+            },
+          ),
+          const SizedBox(height: 8.0),
+          Expanded(
+            child: ValueListenableBuilder<List<dynamic>>(
+              valueListenable: _selectedEvents,
+              builder: (context, value, _) {
+                return ListView.builder(
+                  itemCount: value.length,
+                  itemBuilder: (context, index) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                      decoration: BoxDecoration(
+                        border: Border.all(),
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                      child: ListTile(
+                        onTap: () => print('${value[index]}'),
+                        title: Text('${value[index]['userName']} - ${value[index]['shift']}조'),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
         ],
-        Expanded(child: ListView.builder(itemCount: items.length, itemBuilder: (c,i){ final it = items[i]; return Card(child: ListTile(
-          title: Text('${it['date']} / ${it['userId']} / 조:${it['shift']}'),
-          trailing: canEdit ? IconButton(onPressed: () => del(it['id'] as String), icon: const Icon(Icons.delete, color: Colors.red)) : null,
-        )); }))
-      ]),
+      ),
     );
   }
 }

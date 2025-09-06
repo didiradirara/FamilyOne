@@ -28,13 +28,6 @@ enum ReportStatus {
   resolved
 }
 
-enum RequestKind {
-  mold_change
-  material_add
-  maintenance
-  other
-}
-
 enum ReviewState {
   pending
   approved
@@ -58,9 +51,10 @@ model User {
   name      String
   role      Role
   reports   Report[] @relation("ReportCreatedBy")
-  requests  Request[] @relation("RequestCreatedBy")
+  reportReplies ReportReply[]
   leaves    LeaveRequest[] @relation("LeaveOfUser")
   annRead   AnnouncementRead[]
+  trainingCompletions TrainingCompletion[]
 }
 
 model Report {
@@ -71,18 +65,17 @@ model Report {
   status     ReportStatus @default(new_)
   createdBy  User         @relation("ReportCreatedBy", fields: [createdById], references: [id])
   createdById String
+  replies    ReportReply[]
 }
 
-model Request {
-  id          String      @id @default(uuid())
-  kind        RequestKind
-  details     String
-  createdAt   DateTime    @default(now())
-  state       ReviewState @default(pending)
-  createdBy   User        @relation("RequestCreatedBy", fields: [createdById], references: [id])
-  createdById String
-  reviewerId  String?
-  reviewedAt  DateTime?
+model ReportReply {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+  report    Report   @relation(fields: [reportId], references: [id])
+  reportId  String
 }
 
 model Announcement {
@@ -92,6 +85,11 @@ model Announcement {
   createdAt  DateTime @default(now())
   createdById String
   readBy     AnnouncementRead[]
+  site          String?
+  team          String?
+  teamDetail    String?
+  mustRead      Boolean  @default(false)
+  attachmentUrl String?
 }
 
 model AnnouncementRead {
@@ -117,14 +115,6 @@ model ChecklistSubmission {
   itemsJson String
 }
 
-model Suggestion {
-  id         String   @id @default(uuid())
-  text       String
-  createdAt  DateTime @default(now())
-  anonymous  Boolean  @default(true)
-  createdById String?
-}
-
 model LeaveRequest {
   id         String      @id @default(uuid())
   user       User        @relation("LeaveOfUser", fields: [userId], references: [id])
@@ -136,6 +126,7 @@ model LeaveRequest {
   state      ReviewState @default(pending)
   reviewerId String?
   reviewedAt DateTime?
+  rejectionReason String?
 }
 
 model Shift {
@@ -143,4 +134,24 @@ model Shift {
   date   DateTime
   userId String
   shift  ShiftCode
+}
+
+model Training {
+  id            String   @id @default(uuid())
+  title         String
+  content       String
+  year          Int
+  attachmentUrl String?
+  completions   TrainingCompletion[]
+}
+
+model TrainingCompletion {
+  id          String   @id @default(uuid())
+  training    Training @relation(fields: [trainingId], references: [id])
+  trainingId  String
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  completedAt DateTime @default(now())
+  signature   String?
+  @@unique([trainingId, userId])
 }

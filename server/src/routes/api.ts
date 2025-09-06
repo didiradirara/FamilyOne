@@ -115,6 +115,28 @@ apiRouter.patch('/reports/:id', requireRole('manager','admin'), (req, res) => {
   return res.status(400).json({ error: 'Invalid payload' });
 });
 
+apiRouter.get('/reports/:id/replies', (req, res) => {
+  const replies = repo.listReportReplies(req.params.id);
+  res.json(replies);
+});
+
+apiRouter.post('/reports/:id/replies', (req, res) => {
+  const schema = z.object({
+    content: z.string().min(1),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+  const authorId = req.auth?.sub;
+  if (!authorId) return res.status(401).json({ error: 'Unauthorized' });
+  const reply = repo.createReportReply({
+    ...parsed.data,
+    authorId,
+    reportId: req.params.id,
+  });
+  notify('report:updated', reply.report);
+  res.status(201).json(reply);
+});
+
 // Self-update report (owner only): message/addImages/removeImages
 apiRouter.patch('/reports/:id/self', (req, res) => {
   const owner = req.auth?.sub;
@@ -168,39 +190,18 @@ apiRouter.delete('/reports/:id', (req, res) => {
   return res.json({ ok: out.ok });
 });
 
-// Requests (e-approval)
-apiRouter.post('/requests', (req, res) => {
-  const schema = z.object({ kind: z.enum(['mold_change', 'material_add', 'maintenance', 'other']), details: z.string().min(1), createdBy: z.string().uuid() });
-  const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
-  const creator = repo.findUserById(parsed.data.createdBy);
-  const it = repo.createRequest({ ...parsed.data, site: creator?.site, team: creator?.team, teamDetail: creator?.teamDetail } as any); notify('request:new', it); res.status(201).json(it);
-});
-apiRouter.get('/requests', (req, res) => {
-  const filter = {
-    site: typeof req.query.site === 'string' ? req.query.site : undefined,
-    team: typeof req.query.team === 'string' ? req.query.team : undefined,
-    teamDetail: typeof req.query.teamDetail === 'string' ? req.query.teamDetail : undefined,
-  };
-  res.json(repo.listRequests(filter));
-});
-apiRouter.patch('/requests/:id/approve', requireRole('manager','admin'), (req, res) => {
-  const schema = z.object({ reviewerId: z.string().uuid() });
-  const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
-  const existing = repo.getRequestById(req.params.id); if (!existing) return res.sendStatus(404);
-  if (existing.site && req.auth?.site && existing.site !== req.auth.site) return res.status(403).json({ error: 'Forbidden: cross-site' });
-  const it = repo.setRequestState(req.params.id, 'approved', parsed.data.reviewerId); if (!it) return res.sendStatus(404); notify('request:approved', it); res.json(it);
-});
-apiRouter.patch('/requests/:id/reject', requireRole('manager','admin'), (req, res) => {
-  const schema = z.object({ reviewerId: z.string().uuid() });
-  const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
-  const existing = repo.getRequestById(req.params.id); if (!existing) return res.sendStatus(404);
-  if (existing.site && req.auth?.site && existing.site !== req.auth.site) return res.status(403).json({ error: 'Forbidden: cross-site' });
-  const it = repo.setRequestState(req.params.id, 'rejected', parsed.data.reviewerId); if (!it) return res.sendStatus(404); notify('request:rejected', it); res.json(it);
-});
-
 // Announcements
 apiRouter.post('/announcements', requireRole('manager','admin'), (req, res) => {
-  const schema = z.object({ title: z.string().min(1), body: z.string().min(1), createdBy: z.string().uuid() });
+  const schema = z.object({
+    title: z.string().min(1),
+    body: z.string().min(1),
+    createdBy: z.string().uuid(),
+    mustRead: z.boolean().optional(),
+    attachmentUrl: z.string().optional(),
+    site: z.string().optional(),
+    team: z.string().optional(),
+    teamDetail: z.string().optional()
+  });
   const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
   const creator = repo.findUserById(parsed.data.createdBy);
   const ann = repo.createAnnouncement({ ...parsed.data, site: creator?.site, team: creator?.team, teamDetail: creator?.teamDetail } as any); notify('announcement:new', ann); res.status(201).json(ann);
@@ -218,6 +219,10 @@ apiRouter.post('/announcements/:id/read', (req, res) => {
   const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
   const ann = repo.markAnnouncementRead(req.params.id, parsed.data.userId); if (!ann) return res.sendStatus(404); notify('announcement:read', ann); res.json(ann);
 });
+apiRouter.get('/announcements/:id/unread', requireRole('manager','admin'), (req, res) => {
+  const users = repo.getUnreadUsersForAnnouncement(req.params.id);
+  res.json(users);
+});
 
 // Checklists
 apiRouter.get('/checklists/templates/:category', (req, res) => {
@@ -232,14 +237,6 @@ apiRouter.post('/checklists/submit', (req, res) => {
   const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
   const sub = repo.submitChecklist(parsed.data as any); notify('checklist:submitted', sub); res.status(201).json(sub);
 });
-
-// Suggestions
-apiRouter.post('/suggestions', (req, res) => {
-  const schema = z.object({ text: z.string().min(1), anonymous: z.boolean().default(true), createdBy: z.string().uuid().optional() });
-  const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
-  const it = repo.createSuggestion(parsed.data as any); notify('suggestion:new', it); res.status(201).json(it);
-});
-apiRouter.get('/suggestions', (_req, res) => { res.json(repo.listSuggestions()); });
 
 // Leave requests
 apiRouter.post('/leave-requests', (req, res) => {
@@ -293,13 +290,31 @@ apiRouter.patch('/leave-requests/:id/approve', requireRole('manager','admin'), (
   const it = repo.setLeaveState(req.params.id, 'approved', parsed.data.reviewerId); if (!it) return res.sendStatus(404); notify('leave:approved', it); res.json(it);
 });
 apiRouter.patch('/leave-requests/:id/reject', requireRole('manager','admin'), (req, res) => {
-  const schema = z.object({ reviewerId: z.string().uuid() });
+  const schema = z.object({ reviewerId: z.string().uuid(), rejectionReason: z.string().optional() });
   const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
-  const it = repo.setLeaveState(req.params.id, 'rejected', parsed.data.reviewerId); if (!it) return res.sendStatus(404); notify('leave:rejected', it); res.json(it);
+  const it = repo.setLeaveState(req.params.id, 'rejected', parsed.data.reviewerId, parsed.data.rejectionReason); if (!it) return res.sendStatus(404); notify('leave:rejected', it); res.json(it);
 });
 
 // Schedule (CRUD)
-apiRouter.get('/schedule', (_req, res) => { res.json(repo.listShifts()); });
+apiRouter.get('/schedule', (req, res) => {
+  const user = req.auth;
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+  const teamFilter = typeof req.query.team === 'string' ? req.query.team : undefined;
+
+  if (user.role === 'admin') {
+    const shifts = repo.listShifts({ team: teamFilter });
+    return res.json(shifts);
+  }
+
+  if (user.role === 'manager') {
+    const shifts = repo.listShifts({ team: user.team });
+    return res.json(shifts);
+  }
+
+  const shifts = repo.listShifts({ userId: user.sub });
+  res.json(shifts);
+});
 apiRouter.post('/schedule', requireRole('manager','admin'), (req, res) => {
   const schema = z.object({ date: z.string().min(8), userId: z.string().uuid(), shift: z.string().min(1) });
   const parsed = schema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
@@ -340,6 +355,36 @@ apiRouter.get('/leave/allocations', requireRole('manager','admin'), (req, res) =
   const year = typeof req.query.year === 'string' && /^\d{4}$/.test(req.query.year as string) ? Number(req.query.year) : undefined;
   const list = repo.listLeaveAllocations(year);
   res.json(list);
+});
+
+// Trainings
+apiRouter.get('/trainings', (req, res) => {
+  const year = new Date().getFullYear();
+  const yearParam = Number(req.query.year);
+  res.json(repo.listTrainings(isNaN(yearParam) ? year : yearParam));
+});
+apiRouter.get('/trainings/:id', (req, res) => {
+  const training = repo.getTrainingById(req.params.id);
+  if (!training) return res.sendStatus(404);
+  res.json(training);
+});
+apiRouter.post('/trainings/:id/complete', (req, res) => {
+  const schema = z.object({ signature: z.string() });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+  const userId = req.auth?.sub;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const completion = repo.createTrainingCompletion({
+    trainingId: req.params.id,
+    userId,
+    signature: parsed.data.signature,
+  });
+  res.status(201).json(completion);
+});
+apiRouter.get('/training-completions', (req, res) => {
+  const userId = req.auth?.sub;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  res.json(repo.listTrainingCompletions(userId));
 });
 
 // Uploads (base64 JSON)

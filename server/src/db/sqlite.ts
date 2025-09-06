@@ -36,6 +36,16 @@ CREATE TABLE IF NOT EXISTS reports (
   imagesJson TEXT
 );
 
+CREATE TABLE IF NOT EXISTS report_replies (
+  id TEXT PRIMARY KEY,
+  content TEXT NOT NULL,
+  createdAt TEXT NOT NULL,
+  authorId TEXT NOT NULL,
+  reportId TEXT NOT NULL,
+  FOREIGN KEY (authorId) REFERENCES users(id),
+  FOREIGN KEY (reportId) REFERENCES reports(id)
+);
+
 CREATE TABLE IF NOT EXISTS requests (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL CHECK (kind IN ('mold_change','material_add','maintenance','other')),
@@ -53,7 +63,9 @@ CREATE TABLE IF NOT EXISTS announcements (
   body TEXT NOT NULL,
   createdAt TEXT NOT NULL,
   createdBy TEXT NOT NULL,
-  readBy TEXT NOT NULL -- JSON array of userIds
+  readBy TEXT NOT NULL, -- JSON array of userIds
+  mustRead INTEGER,
+  attachmentUrl TEXT
 );
 
 CREATE TABLE IF NOT EXISTS checklist_templates (
@@ -88,6 +100,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   state TEXT NOT NULL CHECK (state IN ('pending','approved','rejected')),
   reviewerId TEXT,
   reviewedAt TEXT,
+  rejectionReason TEXT,
   cancelState TEXT NOT NULL DEFAULT 'none' CHECK (cancelState IN ('none','requested','approved','rejected')),
   cancelReason TEXT,
   cancelRequestedAt TEXT,
@@ -114,6 +127,24 @@ CREATE TABLE IF NOT EXISTS shifts (
   date TEXT NOT NULL,
   userId TEXT NOT NULL,
   shift TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS trainings (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  attachmentUrl TEXT
+);
+
+CREATE TABLE IF NOT EXISTS training_completions (
+  id TEXT PRIMARY KEY,
+  trainingId TEXT NOT NULL,
+  userId TEXT NOT NULL,
+  completedAt TEXT NOT NULL,
+  signature TEXT,
+  FOREIGN KEY (trainingId) REFERENCES trainings(id),
+  FOREIGN KEY (userId) REFERENCES users(id)
 );
 `;
 
@@ -163,12 +194,15 @@ CREATE TABLE IF NOT EXISTS shifts (
     if (!names.includes('site')) sqlite.exec("ALTER TABLE announcements ADD COLUMN site TEXT");
     if (!names.includes('team')) sqlite.exec("ALTER TABLE announcements ADD COLUMN team TEXT");
     if (!names.includes('teamDetail')) sqlite.exec("ALTER TABLE announcements ADD COLUMN teamDetail TEXT");
+    if (!names.includes('mustRead')) sqlite.exec("ALTER TABLE announcements ADD COLUMN mustRead INTEGER");
+    if (!names.includes('attachmentUrl')) sqlite.exec("ALTER TABLE announcements ADD COLUMN attachmentUrl TEXT");
   } catch {}
 
   // Migration for leave_requests: add signature column
   try {
     const cols = sqlite.prepare('PRAGMA table_info(leave_requests)').all() as any[];
     if (!cols.some(c => c.name === 'signature')) sqlite.exec("ALTER TABLE leave_requests ADD COLUMN signature TEXT");
+    if (!cols.some(c => c.name === 'rejectionReason')) sqlite.exec("ALTER TABLE leave_requests ADD COLUMN rejectionReason TEXT");
     if (!cols.some(c => c.name === 'cancelState')) sqlite.exec("ALTER TABLE leave_requests ADD COLUMN cancelState TEXT NOT NULL DEFAULT 'none'");
     if (!cols.some(c => c.name === 'cancelReason')) sqlite.exec("ALTER TABLE leave_requests ADD COLUMN cancelReason TEXT");
     if (!cols.some(c => c.name === 'cancelRequestedAt')) sqlite.exec("ALTER TABLE leave_requests ADD COLUMN cancelRequestedAt TEXT");

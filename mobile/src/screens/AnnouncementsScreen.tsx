@@ -6,12 +6,14 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useRealtime } from '../realtime/RealtimeContext';
 
-type Ann = { id: string; title: string; body: string; readBy: string[] };
+type Ann = { id: string; title: string; body: string; readBy: string[]; mustRead?: boolean; attachmentUrl?: string };
 
 export default function AnnouncementsScreen() {
   const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [mustRead, setMustRead] = useState(false);
+  const [attachmentUrl, setAttachmentUrl] = useState('');
   const [items, setItems] = useState<Ann[]>([]);
   const [loading, setLoading] = useState(true);
   const [teams, setTeams] = useState<{ team: string; details: string[] }[]>([]);
@@ -44,8 +46,13 @@ export default function AnnouncementsScreen() {
 
   const submit = async () => {
     try {
-      await api.post('/api/announcements', { title, body, createdBy: user?.id || '00000000-0000-0000-0000-000000000000' });
-      setTitle(''); setBody('');
+      await api.post('/api/announcements', {
+        title, body, createdBy: user?.id || '00000000-0000-0000-0000-000000000000',
+        mustRead, attachmentUrl: attachmentUrl || undefined,
+        site: (user as any)?.site,
+        team: selectedTeam !== 'all' ? selectedTeam : undefined,
+      });
+      setTitle(''); setBody(''); setMustRead(false); setAttachmentUrl('');
       await load();
     } catch (e: any) {
       Alert.alert('실패', e?.response?.data?.error || '오류');
@@ -80,9 +87,14 @@ export default function AnnouncementsScreen() {
         <View style={{ gap: 8 }}>
           <Button title={showForm ? '작성 폼 접기' : '공지 작성'} onPress={() => setShowForm((v) => !v)} />
           {showForm && (
-            <View style={{ gap: 8 }}>
+            <View style={{ gap: 8, borderWidth: 1, padding: 8, borderColor: '#ddd' }}>
               <TextInput placeholder="제목" value={title} onChangeText={setTitle} style={{ borderWidth: 1, padding: 8 }} />
-              <TextInput placeholder="내용" value={body} onChangeText={setBody} style={{ borderWidth: 1, padding: 8 }} />
+              <TextInput placeholder="내용" value={body} onChangeText={setBody} style={{ borderWidth: 1, padding: 8 }} multiline />
+              <TextInput placeholder="첨부파일 URL (선택사항)" value={attachmentUrl} onChangeText={setAttachmentUrl} style={{ borderWidth: 1, padding: 8 }} />
+              <Pressable onPress={() => setMustRead(v => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8 }}>
+                <View style={{ width: 20, height: 20, borderWidth: 1, borderColor: '#666', backgroundColor: mustRead ? '#2d6cdf' : '#fff' }} />
+                <Text>필수 확인 공지</Text>
+              </Pressable>
               <Button title="공지 등록" onPress={submit} />
             </View>
           )}
@@ -92,20 +104,30 @@ export default function AnnouncementsScreen() {
         const unread = !!(user && !item.readBy.includes(user.id));
         return (
           <Pressable onPress={() => unread && markRead(item.id)}>
-            <View style={{ padding: 8, borderWidth: 1, marginVertical: 4 }}>
+            <View style={{ padding: 12, borderWidth: 1, marginVertical: 4, gap: 8, borderColor: '#ddd', borderRadius: 4 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ fontWeight: '600', flex: 1 }}>{item.title}</Text>
-                {unread && <Text style={{ color: '#fff', backgroundColor: '#e53935', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, fontSize: 12 }}>NEW</Text>}
+                <Text style={{ fontWeight: '600', flex: 1, fontSize: 16 }}>{item.title}</Text>
+                {item.mustRead && <Text style={{ color: '#fff', backgroundColor: '#f57c00', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, fontSize: 12, fontWeight: 'bold' }}>필수</Text>}
+                {unread && <Text style={{ color: '#fff', backgroundColor: '#e53935', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, fontSize: 12, fontWeight: 'bold' }}>NEW</Text>}
               </View>
-              <Text>{item.body}</Text>
+              <Text style={{ color: '#333' }}>{item.body}</Text>
               {!!(item as any)?.site && (
-                <Text style={{ color: '#666' }}>{(item as any).site} / {(item as any).team || '-'}</Text>
+                <Text style={{ color: '#666', fontSize: 12 }}>{(item as any).site} / {(item as any).team || '전체'}</Text>
               )}
-              <Text>읽음: {item.readBy.length}명</Text>
+              {item.attachmentUrl && <Button title="첨부파일 다운로드" onPress={() => Alert.alert('다운로드', item.attachmentUrl)} />}
+              <Text style={{ fontSize: 12, color: '#666' }}>읽음: {item.readBy.length}명</Text>
               {unread && (
                 <View style={{ marginTop: 8 }}>
                   <Button title="읽음 표시" onPress={() => markRead(item.id)} />
                 </View>
+              )}
+              {canPost && item.mustRead && (
+                <Button title="미확인자 목록" onPress={async () => {
+                  try {
+                    const res = await api.get(`/api/announcements/${item.id}/unread`);
+                    Alert.alert('미확인자', res.data.map((u: any) => u.name).join(', ') || '없음');
+                  } catch (e: any) { Alert.alert('실패', e?.response?.data?.error || '오류'); }
+                }} />
               )}
             </View>
           </Pressable>

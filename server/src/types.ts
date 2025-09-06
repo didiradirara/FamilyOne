@@ -21,17 +21,6 @@ export interface Report {
   images?: string[]; // data URLs or http URLs
 }
 
-export interface RequestItem {
-  id: string;
-  kind: 'mold_change' | 'material_add' | 'maintenance' | 'other';
-  details: string;
-  createdAt: string;
-  createdBy: string; // userId
-  state: 'pending' | 'approved' | 'rejected';
-  reviewerId?: string;
-  reviewedAt?: string;
-}
-
 export interface Announcement {
   id: string;
   title: string;
@@ -54,14 +43,6 @@ export interface ChecklistSubmission {
   userId: string;
   category: 'safety' | 'quality';
   items: ChecklistItem[];
-}
-
-export interface Suggestion {
-  id: string;
-  text: string;
-  createdAt: string;
-  anonymous: boolean;
-  createdBy?: string;
 }
 
 export interface LeaveRequest {

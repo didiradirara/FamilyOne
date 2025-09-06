@@ -1,12 +1,11 @@
 ﻿import 'package:flutter/material.dart';
 import 'screens/home.dart';
 import 'screens/report.dart';
-import 'screens/requests.dart';
 import 'screens/announcements.dart';
 import 'screens/checklist.dart';
-import 'screens/suggestions.dart';
 import 'screens/leave.dart';
 import 'screens/schedule.dart';
+import 'screens/training.dart';
 import 'screens/auth.dart';
 import 'screens/approvals.dart';
 import 'api/session.dart';
@@ -49,20 +48,19 @@ class _FamilyOneAppState extends State<FamilyOneApp> {
   void _rebuildTabs() {
     final isMgr = (ApiSession.role == 'manager' || ApiSession.role == 'admin');
     _pages = [
-      const HomeScreen(), const ReportScreen(), const RequestsScreen(), const AnnouncementsScreen(),
+      const HomeScreen(), const ReportScreen(), const AnnouncementsScreen(),
       if (isMgr) const ApprovalsScreen(),
-      const ChecklistScreen(), const SuggestionsScreen(), const LeaveScreen(), const ScheduleScreen(),
+      const ChecklistScreen(), const LeaveScreen(), const ScheduleScreen(), const TrainingListScreen(),
     ];
     _dests = [
       const NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
       const NavigationDestination(icon: Icon(Icons.report), label: 'Report'),
-      const NavigationDestination(icon: Icon(Icons.assignment), label: 'Requests'),
       const NavigationDestination(icon: Icon(Icons.campaign), label: 'Announce'),
       if (isMgr) const NavigationDestination(icon: Icon(Icons.verified), label: 'Approvals'),
       const NavigationDestination(icon: Icon(Icons.checklist), label: 'Checklist'),
-      const NavigationDestination(icon: Icon(Icons.lightbulb), label: 'Suggest'),
       const NavigationDestination(icon: Icon(Icons.beach_access), label: 'Leave'),
       const NavigationDestination(icon: Icon(Icons.schedule), label: 'Schedule'),
+      const NavigationDestination(icon: Icon(Icons.school), label: 'Training'),
     ];
     if (_index >= _pages.length) _index = 0;
   }
@@ -88,18 +86,14 @@ class _FamilyOneAppState extends State<FamilyOneApp> {
               const NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
               const NavigationDestination(icon: Icon(Icons.report), label: 'Report'),
               NavigationDestination(
-                icon: Stack(children:[const Icon(Icons.assignment), if (RealtimeStore.I.requests>0) Positioned(right:0,top:0, child: _Dot(RealtimeStore.I.requests))]),
-                label: 'Requests',
-              ),
-              NavigationDestination(
                 icon: Stack(children:[const Icon(Icons.campaign), if (RealtimeStore.I.announcements>0) Positioned(right:0,top:0, child: _Dot(RealtimeStore.I.announcements))]),
                 label: 'Announce',
               ),
               if (isMgr) const NavigationDestination(icon: Icon(Icons.verified), label: 'Approvals'),
               const NavigationDestination(icon: Icon(Icons.checklist), label: 'Checklist'),
-              const NavigationDestination(icon: Icon(Icons.lightbulb), label: 'Suggest'),
               const NavigationDestination(icon: Icon(Icons.beach_access), label: 'Leave'),
               const NavigationDestination(icon: Icon(Icons.schedule), label: 'Schedule'),
+              const NavigationDestination(icon: Icon(Icons.school), label: 'Training'),
             ];
             return NavigationBar(
               selectedIndex: _index,
